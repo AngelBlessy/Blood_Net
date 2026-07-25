@@ -12,6 +12,18 @@ const env = {
   port: Number(process.env.PORT || 3000),
   nodeEnv: process.env.NODE_ENV || 'development',
 
+  mongodbUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/bloodnet2',
+
+  jwt: {
+    secret: process.env.JWT_SECRET || 'dev-only-insecure-secret',
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  },
+
+  admin: {
+    email: (process.env.ADMIN_EMAIL || '').trim().toLowerCase(),
+    password: process.env.ADMIN_PASSWORD || '',
+  },
+
   smtp: {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: Number(process.env.SMTP_PORT || 465),

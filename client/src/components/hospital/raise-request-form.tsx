@@ -8,7 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { raiseRequestSchema, type RaiseRequestInput, type RaiseRequestValues } from './schemas';
 import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
-import { useNotifyDonors } from '@/hooks/use-notify-donors';
+import { apiErrorMessage } from '@/lib/api';
 import type { RequestPriority } from '@/types/domain';
 
 const PRIORITIES: RequestPriority[] = ['Critical', 'Urgent', 'Routine'];
@@ -24,8 +24,7 @@ export function RaiseRequestForm({
   submitLabel = 'Find and notify donors',
   onSubmitted,
 }: RaiseRequestFormProps) {
-  const addRequest = useHospitalRequestsStore((state) => state.addRequest);
-  const { notifyDonorsForRequest } = useNotifyDonors();
+  const createRequest = useHospitalRequestsStore((state) => state.createRequest);
 
   const form = useForm<RaiseRequestInput, unknown, RaiseRequestValues>({
     resolver: zodResolver(raiseRequestSchema),
@@ -33,11 +32,14 @@ export function RaiseRequestForm({
   });
 
   async function onSubmit(values: RaiseRequestValues) {
-    const request = addRequest(values.patient, values.bloodGroup, values.units, values.priority);
-    form.reset({ patient: '', bloodGroup: undefined, units: 1, priority: defaultPriority });
-    onSubmitted?.();
-    const result = await notifyDonorsForRequest(request);
-    toast[result.ok ? 'success' : 'error'](result.message);
+    try {
+      const result = await createRequest(values);
+      form.reset({ patient: '', bloodGroup: undefined, units: 1, priority: defaultPriority });
+      onSubmitted?.();
+      toast[result.ok ? 'success' : 'error'](result.message);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, 'Something went wrong raising the request.'));
+    }
   }
 
   return (

@@ -4,26 +4,65 @@ export type RequestPriority = 'Critical' | 'Urgent' | 'Routine';
 
 export type DonorResponse = 'Accepted' | 'Declined';
 
-export interface User {
-  key: string;
-  role: 'Donor';
-  name: string;
-  age: number;
-  phone: string;
+export type Role = 'donor' | 'hospital' | 'bloodbank' | 'admin';
+
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+
+interface BaseUser {
+  id: string;
   email: string;
-  passwordHash: string;
-  passwordSalt: string;
-  bloodGroup: BloodGroup;
-  donatedEver: 'yes' | 'no';
-  lastDonationDate: string;
+  phone: string;
+  status: string;
   emailVerified: boolean;
   phoneVerified: boolean;
-  traveling: boolean;
 }
 
+export interface DonorUser extends BaseUser {
+  role: 'donor';
+  donorId: string;
+  name: string;
+  age: number;
+  bloodGroup: BloodGroup;
+  donatedEver: 'yes' | 'no';
+  lastDonationDate: string | null;
+  traveling: boolean;
+  availabilityStatus: 'available' | 'unavailable';
+}
+
+export interface HospitalUser extends BaseUser {
+  role: 'hospital';
+  hospitalId: string;
+  hospitalName: string;
+  licenseNumber: string;
+  address?: string;
+  city?: string;
+  approvalStatus: ApprovalStatus;
+}
+
+export interface BloodBankUser extends BaseUser {
+  role: 'bloodbank';
+  bankId: string;
+  bankName: string;
+  address?: string;
+  city?: string;
+  contactNumber?: string;
+  approvalStatus: ApprovalStatus;
+}
+
+export interface AdminUser extends BaseUser {
+  role: 'admin';
+}
+
+export type User = DonorUser | HospitalUser | BloodBankUser | AdminUser;
+
 export interface Session {
-  userKey: string;
   user: User;
+}
+
+export interface DonorResponseEntry {
+  donorId: string;
+  donorName: string;
+  response: DonorResponse;
 }
 
 export interface HospitalRequest {
@@ -35,12 +74,66 @@ export interface HospitalRequest {
   matches: number;
   status: string;
   createdAt: string;
-  responses?: Record<string, DonorResponse>;
+  hospitalId: string | null;
+  raisedBy: 'hospital' | 'guest';
+  guestName?: string | null;
+  guestPhone?: string | null;
+  responses: DonorResponseEntry[];
+}
+
+export interface DonorAlertRequest {
+  id: string;
+  patient: string;
+  bloodGroup: BloodGroup;
+  units: number;
+  priority: RequestPriority;
+  status: string;
+  createdAt: string;
+  myResponse: DonorResponse | null;
 }
 
 export interface InventoryItem {
   group: BloodGroup;
   units: number;
-  expiry: string;
-  location: string;
+  expiry?: string | null;
+  location?: string;
+  bankId?: string;
+}
+
+export interface Donation {
+  id: string;
+  donationDate: string;
+  unitsDonated: number;
+}
+
+export interface DonorSummary {
+  profile: {
+    id: string;
+    name: string;
+    age: number;
+    bloodGroup: BloodGroup;
+    donatedEver: 'yes' | 'no';
+    lastDonationDate: string | null;
+    traveling: boolean;
+    availabilityStatus: 'available' | 'unavailable';
+  };
+  eligibility: { eligible: boolean; daysRemaining: number };
+  badgeLevel: string | null;
+  totalDonations: number;
+  donations: Donation[];
+}
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface AdminStats {
+  donorCount: number;
+  openRequests: number;
+  lowStockGroups: BloodGroup[];
+  inventory: InventoryItem[];
 }

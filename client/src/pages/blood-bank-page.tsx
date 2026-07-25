@@ -1,9 +1,17 @@
+import { useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/layout/page-header';
 import { InventoryForm } from '@/components/blood-bank/inventory-form';
 import { InventoryGrid } from '@/components/blood-bank/inventory-grid';
+import { useInventoryStore } from '@/store/inventory-store';
 
 export function BloodBankPage() {
+  const fetchItems = useInventoryStore((state) => state.fetchItems);
+
+  useEffect(() => {
+    fetchItems({ mine: true });
+  }, [fetchItems]);
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
       <PageHeader

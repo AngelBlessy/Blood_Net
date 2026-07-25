@@ -1,13 +1,12 @@
 # BloodNet — Smart Blood Donor Network
 
-An AI-themed demo network connecting donors, hospitals, and blood banks — a React
-frontend backed by a small Express API that only handles OTP delivery, emergency alert
-delivery, and static file serving.
-
-**There is no database.** Donor accounts, hospital requests, and blood-bank inventory
-are all stored in the browser's `localStorage` (via [Zustand](https://zustand.docs.pmnd.rs/)
-with its `persist` middleware) and kept in sync across tabs. Treat this as a functional
-prototype/demo, not a production data store.
+A network connecting donors, hospitals, and blood banks — a React frontend backed by a
+real Express + MongoDB API (JWT cookie auth, bcrypt password hashing, server-generated
+OTPs). Donor, Hospital, Blood Bank, and Admin all have real accounts; hospital/blood
+bank accounts require Admin approval before they can log in. Donor matching for
+emergency requests uses a simple rule-based ranking (blood-group compatibility,
+availability, days since last donation, past response rate) — no ML model, maps, or
+push notifications yet, see "Known limitations".
 
 ## Project structure
 
@@ -31,15 +30,26 @@ client/                          React 19 + TypeScript + Vite + shadcn/ui
 ├── index.html
 └── vite.config.ts                 dev-mode proxies /api → the Express server
 
-server/                          Express API (no view layer — serves client/dist)
-├── index.js                      entry point
+server/                          Express API + MongoDB (no view layer — serves client/dist)
+├── index.js                      entry point: connects Mongo, starts the HTTP server + cron job
 ├── app.js                        Express app factory: middleware, routes, SPA fallback
+├── seed.js                        creates the Admin account from ADMIN_EMAIL/ADMIN_PASSWORD
+├── constants.js                   shared enums (blood groups, roles, priorities, approval states)
 ├── config/env.js                  centralized env var access
-├── routes/                       otp.routes.js, alerts.routes.js
-├── controllers/                   request/response handling per route
-├── services/                      mailer.service.js (Nodemailer), sms.service.js (Twilio)
+├── db/connect.js                  mongoose connection
+├── models/                        User, DonorProfile, HospitalProfile, BloodBankProfile,
+│                                   BloodInventory, BloodRequest, DonorResponse, Donation,
+│                                   Notification, OtpToken
+├── routes/ + controllers/         auth, donors, hospital-requests, inventory, admin, notifications
+├── services/                      otp.service (server-side OTP issue/verify), donor-matching.service
+│                                   (rule-based ranking), request-alert.service (email/SMS fan-out),
+│                                   donor-stats.service (eligibility/badges), user-view.service,
+│                                   blood-compatibility.service, mailer.service (Nodemailer),
+│                                   sms.service (Twilio)
+├── jobs/eligibility-reminder.job.js  daily check for donors becoming eligible in 7 days
+├── middleware/auth.js             JWT cookie issue/verify, requireAuth/requireRole
 ├── middleware/error-handler.js    last-resort error → JSON response
-└── utils/delivery-error.js        maps provider errors (Gmail/Twilio) to clear messages
+└── utils/                         async-handler (wraps async routes), delivery-error
 
 docs/
 ├── design.md                              Design-reference notes (see below)
@@ -55,9 +65,14 @@ prototype bundled as a zip in this repo — it's now a written reference instead
 
 ## Running locally
 
+Requires a MongoDB instance (local MongoDB Community Server, or a MongoDB Atlas
+connection string).
+
 ```bash
 npm install              # installs server deps + client deps (postinstall hook)
-cp .env.example .env      # fill in SMTP / Twilio keys as needed
+cp .env.example .env      # set MONGODB_URI, JWT_SECRET, ADMIN_EMAIL/ADMIN_PASSWORD,
+                           # and SMTP / Twilio keys as needed
+npm run seed               # creates the one Admin account from ADMIN_EMAIL/ADMIN_PASSWORD
 npm run dev                # Vite dev server (5173) + Express API (3000), both live-reloading
 ```
 
@@ -66,7 +81,9 @@ automatically (see `client/vite.config.ts`), so the frontend and backend behave 
 app in development while each gets independent hot-reload.
 
 Without SMTP/Twilio credentials configured, the app still runs — OTP email/SMS sending
-fails gracefully with a clear, non-technical message in the UI instead of crashing.
+fails gracefully with a clear, non-technical message in the UI, and in non-production
+the generated OTP is also printed to the server console (`[dev-otp] ...`) so
+registration/login can still be tested end to end.
 
 ## Production build
 
@@ -82,9 +99,14 @@ requests, it means this process isn't running (or isn't reachable) — start it 
 ## Environment variables
 
 See `.env.example`. In short:
+- `MONGODB_URI` — MongoDB connection string (defaults to `mongodb://127.0.0.1:27017/bloodnet`).
+- `JWT_SECRET` / `JWT_EXPIRES_IN` — session cookie signing.
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` — used only by `npm run seed` to create the single
+  Admin account (Admin has no self-registration form).
 - `SMTP_*` — Gmail (or other SMTP) credentials for sending OTP/alert emails.
 - `TWILIO_*` — Twilio credentials for sending OTP/alert SMS. Optional; SMS features
-  fail gracefully with a clear message if unset.
+  fail gracefully with a clear message if unset (with an OTP fallback logged to the
+  server console outside production).
 
 ## Other scripts
 
@@ -94,4 +116,10 @@ See `.env.example`. In short:
 ## Known limitations
 
 - No automated tests or CI yet.
-- No real backend persistence — see the note at the top of this file.
+- Donor ranking is a simple rule-based formula (blood-group compatibility,
+  availability, days since last donation, past response rate) — no ML model, no
+  geolocation/distance (the UI doesn't collect donor/hospital coordinates), no Google
+  Maps, no Firebase push notifications, no Socket.IO live updates. The home page and
+  hospital/admin dashboards poll on a short interval instead of pushing live updates.
+- Blood bank inventory is now owned per-bank (each blood bank manages its own stock);
+  public/admin views show totals aggregated across all banks.

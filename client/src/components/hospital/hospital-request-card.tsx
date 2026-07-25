@@ -16,8 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { HospitalRequest } from '@/types/domain';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
-import { useUsersStore } from '@/store/users-store';
-import { useNotifyDonors } from '@/hooks/use-notify-donors';
+import { apiErrorMessage } from '@/lib/api';
 
 interface HospitalRequestCardProps {
   request: HospitalRequest;
@@ -26,35 +25,45 @@ interface HospitalRequestCardProps {
 
 export function HospitalRequestCard({ request, showActions = false }: HospitalRequestCardProps) {
   const updateRequest = useHospitalRequestsStore((state) => state.updateRequest);
-  const users = useUsersStore((state) => state.users);
-  const { notifyDonorsForRequest } = useNotifyDonors();
+  const notifyDonors = useHospitalRequestsStore((state) => state.notifyDonors);
   const [editOpen, setEditOpen] = useState(false);
   const [patientDraft, setPatientDraft] = useState(request.patient);
   const [unitsDraft, setUnitsDraft] = useState(String(request.units));
   const [notifying, setNotifying] = useState(false);
 
-  const responseEntries = Object.entries(request.responses || {});
-
   async function handleNotify() {
     setNotifying(true);
-    const result = await notifyDonorsForRequest(request);
-    setNotifying(false);
-    toast[result.ok ? 'success' : 'error'](result.message);
+    try {
+      const result = await notifyDonors(request.id);
+      toast[result.ok ? 'success' : 'error'](result.message);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, 'Something went wrong sending alerts.'));
+    } finally {
+      setNotifying(false);
+    }
   }
 
-  function handleSaveEdit() {
+  async function handleSaveEdit() {
     const units = Number(unitsDraft);
-    const updates: Partial<HospitalRequest> = {};
+    const updates: { patient?: string; units?: number } = {};
     if (patientDraft.trim()) updates.patient = patientDraft.trim();
     if (Number.isInteger(units) && units > 0) updates.units = units;
-    updateRequest(request.id, updates);
-    setEditOpen(false);
-    toast.success('Request updated.');
+    try {
+      await updateRequest(request.id, updates);
+      setEditOpen(false);
+      toast.success('Request updated.');
+    } catch (error) {
+      toast.error(apiErrorMessage(error, 'Could not update the request.'));
+    }
   }
 
-  function handleComplete() {
-    updateRequest(request.id, { status: 'Completed' });
-    toast.success('Request marked as completed.');
+  async function handleComplete() {
+    try {
+      await updateRequest(request.id, { status: 'Completed' });
+      toast.success('Request marked as completed. Donations logged for donors who accepted.');
+    } catch (error) {
+      toast.error(apiErrorMessage(error, 'Could not complete the request.'));
+    }
   }
 
   return (
@@ -66,21 +75,28 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
             {request.bloodGroup} — {request.units} units — {request.matches} donors notified
           </p>
           <p className="text-xs text-muted-foreground">
-            {request.status} — {request.createdAt}
+            {request.status} — {new Date(request.createdAt).toLocaleString()}
           </p>
+          {request.raisedBy === 'guest' && (
+            <p className="text-xs text-muted-foreground">
+              Raised by guest {request.guestName ? `${request.guestName} ` : ''}
+              {request.guestPhone ? `(${request.guestPhone})` : ''} — phone-verified, no hospital account
+            </p>
+          )}
         </div>
-        <Badge variant={request.status === 'Completed' ? 'secondary' : 'outline'}>{request.priority}</Badge>
+        <div className="flex flex-col items-end gap-1">
+          <Badge variant={request.status === 'Completed' ? 'secondary' : 'outline'}>{request.priority}</Badge>
+          {request.raisedBy === 'guest' && (
+            <Badge variant="destructive" className="text-[10px]">
+              Guest request
+            </Badge>
+          )}
+        </div>
       </div>
 
-      {responseEntries.length > 0 && (
+      {request.responses.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          Responses:{' '}
-          {responseEntries
-            .map(([key, response]) => {
-              const user = users.find((entry) => entry.key === key);
-              return `${user?.name || user?.email || key}: ${response}`;
-            })
-            .join(' — ')}
+          Responses: {request.responses.map((entry) => `${entry.donorName}: ${entry.response}`).join(' — ')}
         </p>
       )}
 

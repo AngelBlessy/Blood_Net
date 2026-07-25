@@ -1,25 +1,19 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type { Session, User } from '@/types/domain';
 
 interface SessionState {
   session: Session | null;
-  login: (user: User) => void;
-  logout: () => void;
-  updateSessionUser: (updates: Partial<User>) => void;
+  hydrated: boolean;
+  setUser: (user: User | null) => void;
+  setHydrated: () => void;
 }
 
-export const useSessionStore = create<SessionState>()(
-  persist(
-    (set) => ({
-      session: null,
-      login: (user) => set({ session: { userKey: user.key, user } }),
-      logout: () => set({ session: null }),
-      updateSessionUser: (updates) =>
-        set((state) =>
-          state.session ? { session: { ...state.session, user: { ...state.session.user, ...updates } } } : state
-        ),
-    }),
-    { name: 'bloodnet.session.v1' }
-  )
-);
+// Session truth now lives server-side (httpOnly JWT cookie); this store is
+// just a client-side cache hydrated from GET /api/auth/me on app load, not a
+// persisted source of truth like it was with localStorage.
+export const useSessionStore = create<SessionState>((set) => ({
+  session: null,
+  hydrated: false,
+  setUser: (user) => set({ session: user ? { user } : null }),
+  setHydrated: () => set({ hydrated: true }),
+}));

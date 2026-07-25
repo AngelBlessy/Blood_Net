@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { loginSchema, type LoginValues } from './schemas';
-import { passwordMatches } from '@/lib/crypto';
-import { useUsersStore } from '@/store/users-store';
+import { apiPost, apiErrorMessage } from '@/lib/api';
 import { useSessionStore } from '@/store/session-store';
+import type { User } from '@/types/domain';
 
 interface LoginFormProps {
   onLoggedIn: () => void;
@@ -15,8 +15,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
-  const findByEmail = useUsersStore((state) => state.findByEmail);
-  const login = useSessionStore((state) => state.login);
+  const setUser = useSessionStore((state) => state.setUser);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -24,18 +23,16 @@ export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
   });
 
   async function onSubmit(values: LoginValues) {
-    const email = values.email.trim().toLowerCase();
-    const user = findByEmail(email);
-    if (!user || !(await passwordMatches(user, values.password))) {
-      form.setError('password', { message: 'Incorrect email or password.' });
-      return;
+    try {
+      const result = await apiPost<{ ok: boolean; user: User }>('/auth/login', {
+        email: values.email.trim().toLowerCase(),
+        password: values.password,
+      });
+      setUser(result.user);
+      onLoggedIn();
+    } catch (error) {
+      form.setError('password', { message: apiErrorMessage(error, 'Incorrect email or password.') });
     }
-    if (!user.emailVerified || !user.phoneVerified) {
-      form.setError('password', { message: 'Complete registration OTP verification before logging in.' });
-      return;
-    }
-    login(user);
-    onLoggedIn();
   }
 
   return (

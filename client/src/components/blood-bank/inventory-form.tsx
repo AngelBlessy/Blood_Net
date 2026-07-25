@@ -8,6 +8,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { inventorySchema, type InventoryInput, type InventoryValues } from './schemas';
 import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
 import { useInventoryStore } from '@/store/inventory-store';
+import { apiErrorMessage } from '@/lib/api';
 
 export function InventoryForm() {
   const updateItem = useInventoryStore((state) => state.updateItem);
@@ -17,10 +18,14 @@ export function InventoryForm() {
     defaultValues: { group: undefined, units: 0, expiry: '', location: '' },
   });
 
-  function onSubmit(values: InventoryValues) {
-    updateItem(values.group, { units: values.units, expiry: values.expiry, location: values.location });
-    toast.success('Blood bank inventory updated.');
-    form.reset({ group: undefined, units: 0, expiry: '', location: '' });
+  async function onSubmit(values: InventoryValues) {
+    try {
+      await updateItem(values.group, { units: values.units, expiry: values.expiry, location: values.location });
+      toast.success('Blood bank inventory updated.');
+      form.reset({ group: undefined, units: 0, expiry: '', location: '' });
+    } catch (error) {
+      toast.error(apiErrorMessage(error, 'Could not update inventory.'));
+    }
   }
 
   return (

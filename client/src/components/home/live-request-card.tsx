@@ -1,13 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
-import { useUsersStore } from '@/store/users-store';
-import { eligibleDonorsFor } from '@/lib/donor-matching';
-import { useNotifyDonors } from '@/hooks/use-notify-donors';
+import { apiErrorMessage } from '@/lib/api';
 import { EmergencyRequestDialog } from './emergency-request-dialog';
 
 const DEMO_DONORS = [
@@ -20,17 +18,25 @@ export function LiveRequestCard() {
   const { t } = useTranslation();
   const [status, setStatus] = useState<string>();
   const request = useHospitalRequestsStore((state) => state.requests[0]);
-  const users = useUsersStore((state) => state.users);
-  const { notifyDonorsForRequest } = useNotifyDonors();
+  const fetchRequests = useHospitalRequestsStore((state) => state.fetchRequests);
+  const notifyDonors = useHospitalRequestsStore((state) => state.notifyDonors);
 
-  const donors = request ? eligibleDonorsFor(users, request.bloodGroup) : [];
+  useEffect(() => {
+    fetchRequests({ limit: 1 });
+  }, [fetchRequests]);
 
   async function handleNotify() {
     if (!request) return;
-    setStatus(`Sending details to ${donors.length} matched donor${donors.length === 1 ? '' : 's'}…`);
-    const result = await notifyDonorsForRequest(request);
-    setStatus(result.message);
-    toast[result.ok ? 'success' : 'error'](result.message);
+    setStatus('Sending details to matched donors…');
+    try {
+      const result = await notifyDonors(request.id);
+      setStatus(result.message);
+      toast[result.ok ? 'success' : 'error'](result.message);
+    } catch (error) {
+      const message = apiErrorMessage(error, 'Something went wrong sending alerts.');
+      setStatus(message);
+      toast.error(message);
+    }
   }
 
   return (
@@ -57,20 +63,14 @@ export function LiveRequestCard() {
       </div>
 
       <div className="space-y-2">
-        {request && donors.length === 0 ? (
+        {request ? (
           <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-            No compatible registered donors are available right now.
+            {request.matches === 0
+              ? 'No compatible registered donors are available right now.'
+              : `${request.matches} compatible donor${request.matches === 1 ? '' : 's'} matched and alerted — ${request.status}`}
           </p>
         ) : (
-          (request
-            ? donors.slice(0, 3).map((donor, index) => ({
-                initial: (donor.name || 'D').charAt(0).toUpperCase(),
-                name: donor.name || 'Registered donor',
-                note: `${donor.bloodGroup} donor · Alert ready`,
-                score: 94 - index * 8,
-              }))
-            : DEMO_DONORS
-          ).map((donor) => (
+          DEMO_DONORS.map((donor) => (
             <div key={donor.name} className="flex items-center justify-between rounded-md border bg-card px-3 py-2">
               <div className="flex items-center gap-3">
                 <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">

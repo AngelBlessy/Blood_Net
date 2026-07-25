@@ -1,0 +1,13 @@
+const { Router } = require('express');
+const { asyncHandler } = require('../utils/async-handler');
+const { requireAuth, requireRole } = require('../middleware/auth');
+const ctrl = require('../controllers/donors.controller');
+
+const router = Router();
+
+router.get('/count', asyncHandler(ctrl.count));
+router.patch('/me', requireAuth, requireRole('donor'), asyncHandler(ctrl.updateMe));
+router.get('/me/summary', requireAuth, requireRole('donor'), asyncHandler(ctrl.mySummary));
+router.get('/me/alerts', requireAuth, requireRole('donor'), asyncHandler(ctrl.myAlerts));
+
+module.exports = router;
