@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -15,6 +16,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
+  const { t } = useTranslation();
   const findByEmail = useUsersStore((state) => state.findByEmail);
   const login = useSessionStore((state) => state.login);
 
@@ -27,11 +29,11 @@ export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
     const email = values.email.trim().toLowerCase();
     const user = findByEmail(email);
     if (!user || !(await passwordMatches(user, values.password))) {
-      form.setError('password', { message: 'Incorrect email or password.' });
+      form.setError('password', { message: t('errIncorrectLogin') });
       return;
     }
     if (!user.emailVerified || !user.phoneVerified) {
-      form.setError('password', { message: 'Complete registration OTP verification before logging in.' });
+      form.setError('password', { message: t('errIncompleteVerification') });
       return;
     }
     login(user);
@@ -46,7 +48,7 @@ export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>{t('fieldEmail')}</FormLabel>
               <FormControl>
                 <Input
                   type="email"
@@ -67,10 +69,10 @@ export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>{t('fieldPassword')}</FormLabel>
               <FormControl>
                 <PasswordInput
-                  placeholder="Enter password"
+                  placeholder={t('passwordPlaceholder')}
                   autoComplete="off"
                   {...field}
                   readOnly
@@ -83,10 +85,10 @@ export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
         />
 
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? 'Signing in…' : 'Login'}
+          {form.formState.isSubmitting ? t('loginSigningIn') : t('loginSubmit')}
         </Button>
         <Button type="button" variant="link" size="sm" className="w-full" onClick={onForgotPassword}>
-          Forgot password? Reset with OTP
+          {t('forgotPasswordLink')}
         </Button>
       </form>
     </Form>

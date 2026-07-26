@@ -1,13 +1,16 @@
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useSessionStore } from '@/store/session-store';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
 import { eligibleDonorsFor } from '@/lib/donor-matching';
+import { PRIORITY_LABEL_KEYS, RESPONSE_LABEL_KEYS } from '@/lib/request-labels';
 import type { DonorResponse } from '@/types/domain';
 
 export function DonorAlertsCard() {
+  const { t } = useTranslation();
   const session = useSessionStore((state) => state.session);
   const requests = useHospitalRequestsStore((state) => state.requests);
   const recordResponse = useHospitalRequestsStore((state) => state.recordResponse);
@@ -22,16 +25,16 @@ export function DonorAlertsCard() {
 
   function handleRespond(requestId: string, response: DonorResponse) {
     recordResponse(requestId, donor!.key, response);
-    toast.success(`Emergency request ${response.toLowerCase()}.`);
+    toast.success(t(response === 'Accepted' ? 'toastRequestAccepted' : 'toastRequestDeclined'));
   }
 
   return (
     <Card className="gap-3 p-6 sm:col-span-2">
-      <span className="text-sm font-medium text-primary">Emergency alerts</span>
-      <h3 className="font-semibold">Requests you can respond to</h3>
+      <span className="text-sm font-medium text-primary">{t('donorAlertsEyebrow')}</span>
+      <h3 className="font-semibold">{t('donorAlertsTitle')}</h3>
 
       {openMatches.length === 0 ? (
-        <EmptyState>No compatible emergency requests are open right now.</EmptyState>
+        <EmptyState>{t('noOpenMatches')}</EmptyState>
       ) : (
         <div className="space-y-3">
           {openMatches.slice(0, 6).map((request) => {
@@ -40,17 +43,20 @@ export function DonorAlertsCard() {
               <Card key={request.id} className="gap-2 p-4">
                 <h4 className="font-semibold">{request.patient}</h4>
                 <p className="text-sm text-muted-foreground">
-                  {request.bloodGroup} — {request.units} unit{request.units === 1 ? '' : 's'} — {request.priority}
+                  {request.bloodGroup} — {t('unitsCount', { count: request.units })} —{' '}
+                  {t(PRIORITY_LABEL_KEYS[request.priority])}
                 </p>
                 {response ? (
-                  <p className="text-sm font-medium">Your response: {response}</p>
+                  <p className="text-sm font-medium">
+                    {t('yourResponseLabel', { response: t(RESPONSE_LABEL_KEYS[response]) })}
+                  </p>
                 ) : (
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => handleRespond(request.id, 'Accepted')}>
-                      Accept
+                      {t('acceptButton')}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => handleRespond(request.id, 'Declined')}>
-                      Reject
+                      {t('rejectButton')}
                     </Button>
                   </div>
                 )}

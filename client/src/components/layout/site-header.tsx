@@ -24,9 +24,9 @@ const NAV_LINKS = [
 ] as const;
 
 const WORKSPACE_LINKS = [
-  { to: '/hospital', label: 'Hospital' },
-  { to: '/blood-bank', label: 'Blood Bank' },
-  { to: '/admin', label: 'Admin' },
+  { to: '/hospital', label: 'workspaceHospital' },
+  { to: '/blood-bank', label: 'workspaceBloodBank' },
+  { to: '/admin', label: 'workspaceAdmin' },
 ] as const;
 
 export function SiteHeader() {
@@ -71,14 +71,14 @@ export function SiteHeader() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="gap-1">
-                Workspaces
+                {t('workspacesLabel')}
                 <ChevronDown className="size-3.5 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               {WORKSPACE_LINKS.map((link) => (
                 <DropdownMenuItem key={link.to} asChild>
-                  <Link to={link.to}>{link.label}</Link>
+                  <Link to={link.to}>{t(link.label)}</Link>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -94,7 +94,7 @@ export function SiteHeader() {
           {session ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
+                <Button variant="ghost" size="icon" className="rounded-full" aria-label={t('accountMenuAria')}>
                   <Avatar className="size-8">
                     <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                       {initial}
@@ -104,10 +104,10 @@ export function SiteHeader() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link to="/profile">Profile</Link>
+                  <Link to="/profile">{t('navProfile')}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={handleLogout}>Log out</DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleLogout}>{t('logoutText')}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
@@ -126,7 +126,7 @@ export function SiteHeader() {
             size="icon"
             className="md:hidden"
             onClick={() => setMobileOpen((open) => !open)}
-            aria-label="Toggle navigation"
+            aria-label={t('toggleNavAria')}
             aria-expanded={mobileOpen}
           >
             {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -145,11 +145,11 @@ export function SiteHeader() {
               </Button>
             ))}
 
-            <p className="mt-2 px-2 text-xs font-medium text-muted-foreground">Workspaces</p>
+            <p className="mt-2 px-2 text-xs font-medium text-muted-foreground">{t('workspacesLabel')}</p>
             {WORKSPACE_LINKS.map((link) => (
               <Button key={link.to} variant="ghost" size="sm" className="justify-start" asChild>
                 <Link to={link.to} onClick={handleNavClick}>
-                  {link.label}
+                  {t(link.label)}
                 </Link>
               </Button>
             ))}

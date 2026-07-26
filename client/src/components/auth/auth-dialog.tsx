@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RegisterForm } from './register-form';
@@ -12,26 +13,14 @@ import { useUiStore } from '@/store/ui-store';
 
 type Step = 'register' | 'login' | 'forgot' | 'otp';
 
-const STEP_COPY: Record<Step, { title: string; description: string }> = {
-  register: {
-    title: 'Register or sign in',
-    description: 'Verify your email and phone with OTP when registering. Sign in with your email and password.',
-  },
-  login: {
-    title: 'Register or sign in',
-    description: 'Verify your email and phone with OTP when registering. Sign in with your email and password.',
-  },
-  forgot: {
-    title: 'Reset password',
-    description: 'Enter the registered email or mobile number.',
-  },
-  otp: {
-    title: 'Verify OTP',
-    description: 'Enter the OTP sent to your email and phone.',
-  },
-};
-
 export function AuthDialog() {
+  const { t } = useTranslation();
+  const STEP_COPY: Record<Step, { title: string; description: string }> = {
+    register: { title: t('authTitle'), description: t('authSubtitle') },
+    login: { title: t('authTitle'), description: t('authSubtitle') },
+    forgot: { title: t('resetPasswordTitle'), description: t('resetPasswordDesc') },
+    otp: { title: t('otpVerifyTitle'), description: t('otpHint') },
+  };
   const open = useUiStore((state) => state.authDialogOpen);
   const authDialogTab = useUiStore((state) => state.authDialogTab);
   const closeAuthDialog = useUiStore((state) => state.closeAuthDialog);
@@ -59,17 +48,17 @@ export function AuthDialog() {
   }
 
   function handleOtpVerified() {
-    toast.success('Registration OTP verified. Please log in.');
+    toast.success(t('toastRegOtpVerified'));
     setStep('login');
   }
 
   function handleLoggedIn() {
     closeAuthDialog();
-    toast.success('Login successful.');
+    toast.success(t('loginToast'));
   }
 
   function handlePasswordReset(message?: string) {
-    toast.success(message ?? 'Password reset successful. Please login.');
+    toast.success(message ?? t('passwordResetSuccess'));
     setStep('login');
   }
 
@@ -102,8 +91,8 @@ export function AuthDialog() {
         ) : (
           <Tabs value={step} onValueChange={(value) => setStep(value as Step)}>
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="register">Registration</TabsTrigger>
-              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="register">{t('registerTab')}</TabsTrigger>
+              <TabsTrigger value="login">{t('loginTab')}</TabsTrigger>
             </TabsList>
             <TabsContent value="register" className="pt-4">
               <RegisterForm submitRegistration={registration.submitRegistration} onOtpSent={handleOtpSent} />

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { Pencil } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,7 @@ import type { HospitalRequest } from '@/types/domain';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
 import { useUsersStore } from '@/store/users-store';
 import { useNotifyDonors } from '@/hooks/use-notify-donors';
+import { PRIORITY_LABEL_KEYS, RESPONSE_LABEL_KEYS } from '@/lib/request-labels';
 
 interface HospitalRequestCardProps {
   request: HospitalRequest;
@@ -25,6 +27,7 @@ interface HospitalRequestCardProps {
 }
 
 export function HospitalRequestCard({ request, showActions = false }: HospitalRequestCardProps) {
+  const { t } = useTranslation();
   const updateRequest = useHospitalRequestsStore((state) => state.updateRequest);
   const users = useUsersStore((state) => state.users);
   const { notifyDonorsForRequest } = useNotifyDonors();
@@ -49,12 +52,12 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
     if (Number.isInteger(units) && units > 0) updates.units = units;
     updateRequest(request.id, updates);
     setEditOpen(false);
-    toast.success('Request updated.');
+    toast.success(t('toastRequestUpdated'));
   }
 
   function handleComplete() {
     updateRequest(request.id, { status: 'Completed' });
-    toast.success('Request marked as completed.');
+    toast.success(t('toastRequestCompleted'));
   }
 
   return (
@@ -63,22 +66,33 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
         <div>
           <h4 className="font-semibold">{request.patient}</h4>
           <p className="text-sm text-muted-foreground">
-            {request.bloodGroup} — {request.units} units — {request.matches} donors notified
+            {t('requestSummaryLine', {
+              bloodGroup: request.bloodGroup,
+              units: request.units,
+              matches: request.matches,
+            })}
           </p>
+          {request.contactName && request.contactPhone && (
+            <p className="text-xs text-muted-foreground">
+              {t('contactRequesterLabel', { name: request.contactName, phone: request.contactPhone })}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
-            {request.status} — {request.createdAt}
+            {request.status === 'Completed' ? t('statusCompleted') : request.status} — {request.createdAt}
           </p>
         </div>
-        <Badge variant={request.status === 'Completed' ? 'secondary' : 'outline'}>{request.priority}</Badge>
+        <Badge variant={request.status === 'Completed' ? 'secondary' : 'outline'}>
+          {t(PRIORITY_LABEL_KEYS[request.priority])}
+        </Badge>
       </div>
 
       {responseEntries.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          Responses:{' '}
+          {t('responsesLabel')}{' '}
           {responseEntries
             .map(([key, response]) => {
               const user = users.find((entry) => entry.key === key);
-              return `${user?.name || user?.email || key}: ${response}`;
+              return `${user?.name || user?.email || key}: ${t(RESPONSE_LABEL_KEYS[response])}`;
             })
             .join(' — ')}
         </p>
@@ -87,14 +101,14 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
       {showActions && (
         <div className="mt-1 flex flex-wrap gap-2">
           <Button variant="link" size="sm" className="h-auto p-0" onClick={handleNotify} disabled={notifying}>
-            {notifying ? 'Notifying…' : 'Request donors'}
+            {notifying ? t('notifyingEllipsis') : t('requestDonorsLink')}
           </Button>
           <Button variant="link" size="sm" className="h-auto gap-1 p-0" onClick={() => setEditOpen(true)}>
-            <Pencil className="size-3" /> Edit
+            <Pencil className="size-3" /> {t('editLink')}
           </Button>
           {request.status !== 'Completed' && (
             <Button variant="link" size="sm" className="h-auto p-0" onClick={handleComplete}>
-              Mark completed
+              {t('markCompleted')}
             </Button>
           )}
         </div>
@@ -103,16 +117,16 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Edit request</DialogTitle>
-            <DialogDescription>Update the patient reference or units needed.</DialogDescription>
+            <DialogTitle>{t('editRequestTitle')}</DialogTitle>
+            <DialogDescription>{t('editRequestDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="edit-patient">Patient / case reference</Label>
+              <Label htmlFor="edit-patient">{t('fieldPatientCase')}</Label>
               <Input id="edit-patient" value={patientDraft} onChange={(e) => setPatientDraft(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-units">Units needed</Label>
+              <Label htmlFor="edit-units">{t('fieldUnits')}</Label>
               <Input
                 id="edit-units"
                 type="number"
@@ -123,7 +137,7 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleSaveEdit}>Save changes</Button>
+            <Button onClick={handleSaveEdit}>{t('saveChanges')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -11,6 +11,8 @@ async function sendEmergencyAlerts(req, res) {
     const bloodGroup = String(request?.bloodGroup || '').trim();
     const units = Number(request?.units);
     const priority = String(request?.priority || '').trim();
+    const contactName = String(request?.contactName || '').trim();
+    const contactPhone = String(request?.contactPhone || '').replace(/\D/g, '');
 
     if (
       !patient ||
@@ -18,6 +20,8 @@ async function sendEmergencyAlerts(req, res) {
       !Number.isInteger(units) ||
       units < 1 ||
       !priority ||
+      !contactName ||
+      !PHONE_PATTERN.test(contactPhone) ||
       !Array.isArray(recipients) ||
       recipients.length > 100
     ) {
@@ -25,7 +29,7 @@ async function sendEmergencyAlerts(req, res) {
     }
 
     const subject = `Urgent blood request: ${bloodGroup} needed`;
-    const message = `BloodNet emergency alert\n\nPatient / case: ${patient}\nBlood group needed: ${bloodGroup}\nUnits needed: ${units}\nPriority: ${priority}\n\nPlease respond to the hospital if you are available to donate.`;
+    const message = `BloodNet emergency alert\n\nPatient / case: ${patient}\nBlood group needed: ${bloodGroup}\nUnits needed: ${units}\nPriority: ${priority}\n\nRequested by: ${contactName} (${contactPhone})\n\nPlease respond if you are available for donation.`;
 
     const results = await Promise.all(
       recipients.map(async (recipient) => {

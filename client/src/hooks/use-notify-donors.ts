@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useUsersStore } from '@/store/users-store';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
 import { eligibleDonorsFor } from '@/lib/donor-matching';
@@ -11,6 +12,7 @@ interface NotifyResult {
 }
 
 export function useNotifyDonors() {
+  const { t } = useTranslation();
   const users = useUsersStore((state) => state.users);
   const updateRequest = useHospitalRequestsStore((state) => state.updateRequest);
 
@@ -18,27 +20,40 @@ export function useNotifyDonors() {
     const donors = eligibleDonorsFor(users, request.bloodGroup);
 
     if (!donors.length) {
-      updateRequest(request.id, { matches: 0, status: 'No compatible donors available' });
-      return { ok: false, message: 'No compatible registered donors are currently available.', donors };
+      updateRequest(request.id, { matches: 0, status: t('statusNoCompatibleDonors') });
+      return { ok: false, message: t('errNoCompatibleDonors'), donors };
     }
 
-    updateRequest(request.id, { status: 'Sending emergency alerts', matches: donors.length });
+    updateRequest(request.id, { status: t('statusSendingAlerts'), matches: donors.length });
 
     try {
       const result = await sendEmergencyAlerts(
-        { patient: request.patient, bloodGroup: request.bloodGroup, units: request.units, priority: request.priority },
+        {
+          patient: request.patient,
+          bloodGroup: request.bloodGroup,
+          units: request.units,
+          priority: request.priority,
+          contactName: request.contactName,
+          contactPhone: request.contactPhone,
+        },
         donors.map(({ name, email, phone }) => ({ name, email, phone }))
       );
-      updateRequest(request.id, { status: `Alerts sent: ${result.emailSent} email, ${result.smsSent} SMS` });
+      updateRequest(request.id, {
+        status: t('statusAlertsSent', { emailSent: result.emailSent, smsSent: result.smsSent }),
+      });
       return {
         ok: true,
-        message: `Alert sent to ${donors.length} donor${donors.length === 1 ? '' : 's'} (${result.emailSent} email, ${result.smsSent} SMS).`,
+        message: t('toastAlertSentSummary', {
+          count: donors.length,
+          emailSent: result.emailSent,
+          smsSent: result.smsSent,
+        }),
         donors,
       };
     } catch (error) {
       console.error('Emergency alert delivery failed:', error instanceof Error ? error.message : error);
-      updateRequest(request.id, { status: 'Alert delivery could not be completed' });
-      return { ok: false, message: 'Something went wrong sending alerts. Please try again.', donors };
+      updateRequest(request.id, { status: t('statusAlertFailed') });
+      return { ok: false, message: t('errAlertSendFailed'), donors };
     }
   }
 

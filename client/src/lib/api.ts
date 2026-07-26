@@ -49,6 +49,8 @@ interface EmergencyAlertRequest {
   bloodGroup: BloodGroup;
   units: number;
   priority: RequestPriority;
+  contactName: string;
+  contactPhone: string;
 }
 
 interface EmergencyAlertResult {

@@ -32,6 +32,8 @@ export interface HospitalRequest {
   bloodGroup: BloodGroup;
   units: number;
   priority: RequestPriority;
+  contactName: string;
+  contactPhone: string;
   matches: number;
   status: string;
   createdAt: string;

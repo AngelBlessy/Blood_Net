@@ -1,5 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -18,6 +19,7 @@ interface RegisterFormProps {
 const today = new Date().toISOString().slice(0, 10);
 
 export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProps) {
+  const { t } = useTranslation();
   const form = useForm<RegisterInput, unknown, RegisterValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -52,9 +54,9 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Name</FormLabel>
+              <FormLabel>{t('fieldName')}</FormLabel>
               <FormControl>
-                <Input placeholder="Full name" autoComplete="name" {...field} />
+                <Input placeholder={t('namePlaceholder')} autoComplete="name" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -67,13 +69,13 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
             name="age"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Age</FormLabel>
+                <FormLabel>{t('fieldAge')}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
                     min={1}
                     max={120}
-                    placeholder="Age"
+                    placeholder={t('fieldAge')}
                     {...field}
                     value={(field.value as number | string | undefined) ?? ''}
                   />
@@ -87,13 +89,13 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact no</FormLabel>
+                <FormLabel>{t('fieldContactNo')}</FormLabel>
                 <FormControl>
                   <Input
                     type="tel"
                     inputMode="numeric"
                     maxLength={10}
-                    placeholder="10-digit phone number"
+                    placeholder={t('phonePlaceholder')}
                     autoComplete="tel"
                     {...field}
                   />
@@ -109,7 +111,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>{t('fieldEmail')}</FormLabel>
               <FormControl>
                 <Input type="email" placeholder="name@example.com" autoComplete="email" {...field} />
               </FormControl>
@@ -123,9 +125,9 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>{t('fieldPassword')}</FormLabel>
               <FormControl>
-                <PasswordInput placeholder="Create password" autoComplete="new-password" {...field} />
+                <PasswordInput placeholder={t('createPasswordPlaceholder')} autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -137,9 +139,9 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirm password</FormLabel>
+              <FormLabel>{t('fieldConfirmPassword')}</FormLabel>
               <FormControl>
-                <PasswordInput placeholder="Re-enter password" autoComplete="new-password" {...field} />
+                <PasswordInput placeholder={t('confirmPasswordPlaceholder')} autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -151,14 +153,14 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="donatedEver"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Donated anytime in life</FormLabel>
+              <FormLabel>{t('fieldDonatedEver')}</FormLabel>
               <FormControl>
                 <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-6">
                   <label className="flex items-center gap-2 text-sm">
-                    <RadioGroupItem value="yes" /> Yes
+                    <RadioGroupItem value="yes" /> {t('yesLabel')}
                   </label>
                   <label className="flex items-center gap-2 text-sm">
-                    <RadioGroupItem value="no" /> No
+                    <RadioGroupItem value="no" /> {t('noLabel')}
                   </label>
                 </RadioGroup>
               </FormControl>
@@ -173,7 +175,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
             name="lastDonationDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Last donation date</FormLabel>
+                <FormLabel>{t('profileDonationLabel')}</FormLabel>
                 <FormControl>
                   <Input type="date" max={today} {...field} />
                 </FormControl>
@@ -188,11 +190,11 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="bloodGroup"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Blood group</FormLabel>
+              <FormLabel>{t('fieldBloodGroup')}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select blood group" />
+                    <SelectValue placeholder={t('selectBloodGroupPlaceholder')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -209,7 +211,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
         />
 
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? 'Sending OTP…' : 'Send OTP'}
+          {form.formState.isSubmitting ? t('sendingOtpEllipsis') : t('registerSubmit')}
         </Button>
       </form>
     </Form>

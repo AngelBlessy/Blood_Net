@@ -1,8 +1,10 @@
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useInventoryStore, LOW_STOCK_THRESHOLD } from '@/store/inventory-store';
 
 export function InventoryGrid() {
+  const { t } = useTranslation();
   const items = useInventoryStore((state) => state.items);
 
   return (
@@ -15,13 +17,13 @@ export function InventoryGrid() {
               <strong className="text-lg">{item.group}</strong>
               {low && (
                 <Badge variant="destructive" className="text-[10px]">
-                  Low stock
+                  {t('lowStockBadge')}
                 </Badge>
               )}
             </div>
-            <p className="text-sm font-medium">{item.units} units</p>
+            <p className="text-sm font-medium">{t('unitsLabel', { count: item.units })}</p>
             <p className="text-xs text-muted-foreground">
-              {item.location} — Exp: {item.expiry}
+              {t('inventoryLocationExpiry', { location: item.location, expiry: item.expiry })}
             </p>
           </Card>
         );

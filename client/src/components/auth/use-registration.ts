@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { RegisterValues } from './schemas';
 import type { FlowResult } from './types';
 import { createOtpRecord, createPasswordRecord, hashOtp, type OtpRecord } from '@/lib/crypto';
@@ -15,6 +16,7 @@ interface RegistrationResult extends FlowResult {
 }
 
 export function useRegistration() {
+  const { t } = useTranslation();
   const [pending, setPending] = useState<PendingRegistrationOtp | null>(null);
   const upsertUser = useUsersStore((state) => state.upsertUser);
   const updateUser = useUsersStore((state) => state.updateUser);
@@ -37,14 +39,14 @@ export function useRegistration() {
         message: otpFailureMessage(!emailDelivery.delivered && 'email', !smsDelivery.delivered && 'SMS'),
       };
     }
-    return { ok: true, message: 'Same OTP has been sent to your email and mobile number.' };
+    return { ok: true, message: t('registerToast') };
   }
 
   async function submitRegistration(values: RegisterValues): Promise<RegistrationResult> {
     const email = values.email.trim().toLowerCase();
     const phone = values.phone.trim();
     if (isEmailOrPhoneTaken(email, phone)) {
-      return { ok: false, accountCreated: false, message: 'This email or phone already exists.' };
+      return { ok: false, accountCreated: false, message: t('duplicateUser') };
     }
 
     const passwordRecord = await createPasswordRecord(values.password);
@@ -70,10 +72,10 @@ export function useRegistration() {
   }
 
   async function verifyOtp(code: string): Promise<FlowResult> {
-    if (!pending) return { ok: false, message: 'Please request a new OTP.' };
-    if (Date.now() > pending.expiresAt) return { ok: false, message: 'OTP expired. Please request a new OTP.' };
+    if (!pending) return { ok: false, message: t('errRequestNewOtp') };
+    if (Date.now() > pending.expiresAt) return { ok: false, message: t('otpExpired') };
     const hash = await hashOtp(code, pending.salt, pending.target, 'register');
-    if (hash !== pending.hash) return { ok: false, message: 'Invalid OTP.' };
+    if (hash !== pending.hash) return { ok: false, message: t('otpInvalidShort') };
 
     updateUser(pending.userKey, { emailVerified: true, phoneVerified: true });
     setPending(null);
@@ -81,9 +83,9 @@ export function useRegistration() {
   }
 
   async function resendOtp(): Promise<FlowResult> {
-    if (!pending) return { ok: false, message: 'Please start registration again.' };
+    if (!pending) return { ok: false, message: t('errRestartRegistration') };
     const user = findByKey(pending.userKey);
-    if (!user) return { ok: false, message: 'Please start registration again.' };
+    if (!user) return { ok: false, message: t('errRestartRegistration') };
     return sendRegistrationOtp(user);
   }
 

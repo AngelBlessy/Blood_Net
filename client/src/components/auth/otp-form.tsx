@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -18,6 +19,7 @@ interface OtpFormProps {
 }
 
 export function OtpForm({ expiresAt, resendAt, message, verifyOtp, resendOtp, onVerified }: OtpFormProps) {
+  const { t } = useTranslation();
   const [statusMessage, setStatusMessage] = useState(message);
   const [resendAtState, setResendAtState] = useState(resendAt);
   const countdown = useCountdown(expiresAt);
@@ -31,7 +33,7 @@ export function OtpForm({ expiresAt, resendAt, message, verifyOtp, resendOtp, on
   async function onSubmit(values: OtpValues) {
     const result = await verifyOtp(values.otp);
     if (!result.ok) {
-      form.setError('otp', { message: result.message ?? 'Invalid OTP.' });
+      form.setError('otp', { message: result.message ?? t('otpInvalidShort') });
       return;
     }
     onVerified();
@@ -53,12 +55,12 @@ export function OtpForm({ expiresAt, resendAt, message, verifyOtp, resendOtp, on
           name="otp"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>OTP</FormLabel>
+              <FormLabel>{t('fieldOtp')}</FormLabel>
               <FormControl>
                 <Input
                   inputMode="numeric"
                   maxLength={6}
-                  placeholder="6-digit code"
+                  placeholder={t('otpPlaceholder')}
                   autoComplete="one-time-code"
                   {...field}
                 />
@@ -77,12 +79,12 @@ export function OtpForm({ expiresAt, resendAt, message, verifyOtp, resendOtp, on
             onClick={handleResend}
             disabled={!resendCountdown.expired}
           >
-            {resendCountdown.expired ? 'Resend OTP' : `Resend in ${resendCountdown.label}`}
+            {resendCountdown.expired ? t('resendOtpLabel') : t('resendInLabel', { time: resendCountdown.label })}
           </Button>
         </div>
 
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting || countdown.expired}>
-          {form.formState.isSubmitting ? 'Verifying…' : 'Verify OTP'}
+          {form.formState.isSubmitting ? t('verifyingEllipsis') : t('otpSubmit')}
         </Button>
       </form>
     </Form>
