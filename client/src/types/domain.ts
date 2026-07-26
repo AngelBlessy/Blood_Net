@@ -36,6 +36,7 @@ export interface HospitalUser extends BaseUser {
   licenseNumber: string;
   address?: string;
   city?: string;
+  contactNumber?: string;
   approvalStatus: ApprovalStatus;
 }
 
@@ -62,7 +63,9 @@ export interface Session {
 export interface DonorResponseEntry {
   donorId: string;
   donorName: string;
+  donorPhone: string | null;
   response: DonorResponse;
+  respondedAt: string;
 }
 
 export interface HospitalRequest {
@@ -75,7 +78,7 @@ export interface HospitalRequest {
   status: string;
   createdAt: string;
   hospitalId: string | null;
-  raisedBy: 'hospital' | 'guest';
+  raisedBy: 'hospital' | 'guest' | 'donor' | 'bloodbank';
   guestName?: string | null;
   guestPhone?: string | null;
   contactName?: string | null;

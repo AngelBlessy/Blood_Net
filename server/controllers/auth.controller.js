@@ -91,6 +91,7 @@ async function register(req, res) {
       licenseNumber,
       address: String(body.address || '').trim(),
       city: String(body.city || '').trim(),
+      contactNumber: String(body.contactNumber || phone).trim(),
     });
     return finishRegistration(res, user, email, phone);
   }

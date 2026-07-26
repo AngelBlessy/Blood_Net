@@ -11,10 +11,21 @@ interface CreateRequestInput {
   contactPhone: string;
 }
 
+function replaceInBoth(requests: HospitalRequest[], myRequests: HospitalRequest[], id: string, updated: HospitalRequest) {
+  return {
+    requests: requests.map((entry) => (entry.id === id ? updated : entry)),
+    myRequests: myRequests.map((entry) => (entry.id === id ? updated : entry)),
+  };
+}
+
 interface HospitalRequestsState {
   requests: HospitalRequest[];
+  myRequests: HospitalRequest[];
   loading: boolean;
   fetchRequests: (options?: { mine?: boolean; limit?: number }) => Promise<void>;
+  // Separate from `requests` (the public/homepage feed) so a background poll for
+  // the logged-in raiser's own requests never clobbers what the homepage shows.
+  fetchMyRequests: () => Promise<HospitalRequest[]>;
   createRequest: (input: CreateRequestInput) => Promise<{ ok: boolean; message: string }>;
   updateRequest: (id: string, updates: { patient?: string; units?: number; status?: 'Completed' }) => Promise<void>;
   notifyDonors: (id: string) => Promise<{ ok: boolean; message: string }>;
@@ -23,6 +34,7 @@ interface HospitalRequestsState {
 
 export const useHospitalRequestsStore = create<HospitalRequestsState>((set) => ({
   requests: [],
+  myRequests: [],
   loading: false,
 
   async fetchRequests(options) {
@@ -39,22 +51,28 @@ export const useHospitalRequestsStore = create<HospitalRequestsState>((set) => (
     }
   },
 
+  async fetchMyRequests() {
+    const data = await apiGet<{ requests: HospitalRequest[] }>('/hospital-requests?mine=true');
+    set({ myRequests: data.requests });
+    return data.requests;
+  },
+
   async createRequest(input) {
     const data = await apiPost<{ ok: boolean; message: string; request: HospitalRequest }>('/hospital-requests', input);
-    set((state) => ({ requests: [data.request, ...state.requests] }));
+    set((state) => ({ myRequests: [data.request, ...state.myRequests] }));
     return { ok: data.ok, message: data.message };
   },
 
   async updateRequest(id, updates) {
     const data = await apiPatch<{ ok: boolean; request: HospitalRequest }>(`/hospital-requests/${id}`, updates);
-    set((state) => ({ requests: state.requests.map((entry) => (entry.id === id ? data.request : entry)) }));
+    set((state) => replaceInBoth(state.requests, state.myRequests, id, data.request));
   },
 
   async notifyDonors(id) {
     const data = await apiPost<{ ok: boolean; message: string; request: HospitalRequest }>(
       `/hospital-requests/${id}/notify`
     );
-    set((state) => ({ requests: state.requests.map((entry) => (entry.id === id ? data.request : entry)) }));
+    set((state) => replaceInBoth(state.requests, state.myRequests, id, data.request));
     return { ok: data.ok, message: data.message };
   },
 

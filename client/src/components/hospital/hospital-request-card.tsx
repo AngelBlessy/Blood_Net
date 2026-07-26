@@ -113,7 +113,10 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
         <p className="text-xs text-muted-foreground">
           {t('responsesLabel')}{' '}
           {request.responses
-            .map((entry) => `${entry.donorName}: ${t(RESPONSE_LABEL_KEYS[entry.response])}`)
+            .map((entry) => {
+              const contact = entry.response === 'Accepted' && entry.donorPhone ? ` (${entry.donorPhone})` : '';
+              return `${entry.donorName}${contact}: ${t(RESPONSE_LABEL_KEYS[entry.response])}`;
+            })
             .join(' — ')}
         </p>
       )}

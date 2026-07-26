@@ -5,11 +5,13 @@ import { StatCard } from '@/components/ui/stat-card';
 import { EmergencyRequestDialog } from './emergency-request-dialog';
 import { LiveRequestCard } from './live-request-card';
 import { useUiStore } from '@/store/ui-store';
+import { useSessionStore } from '@/store/session-store';
 import { useLiveDonorCount } from '@/hooks/use-live-donor-count';
 
 export function HeroSection() {
   const { t } = useTranslation();
   const openAuthDialog = useUiStore((state) => state.openAuthDialog);
+  const session = useSessionStore((state) => state.session);
   const liveDonorCount = useLiveDonorCount();
 
   const stats = [
@@ -34,12 +36,16 @@ export function HeroSection() {
         <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">{t('heroDesc')}</p>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button size="lg" onClick={() => openAuthDialog('register')}>
-            {t('ctaRegister')}
-          </Button>
-          <Button variant="outline" size="lg" onClick={() => openAuthDialog('login')}>
-            {t('ctaLogin')}
-          </Button>
+          {!session && (
+            <>
+              <Button size="lg" onClick={() => openAuthDialog('register')}>
+                {t('ctaRegister')}
+              </Button>
+              <Button variant="outline" size="lg" onClick={() => openAuthDialog('login')}>
+                {t('ctaLogin')}
+              </Button>
+            </>
+          )}
           <EmergencyRequestDialog variant="link" size="lg" />
         </div>
 

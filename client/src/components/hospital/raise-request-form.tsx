@@ -9,9 +9,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { raiseRequestSchema, type RaiseRequestInput, type RaiseRequestValues } from './schemas';
 import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
+import { useSessionStore } from '@/store/session-store';
 import { PRIORITY_LABEL_KEYS } from '@/lib/request-labels';
 import { apiErrorMessage } from '@/lib/api';
-import type { RequestPriority } from '@/types/domain';
+import type { RequestPriority, User } from '@/types/domain';
 
 const PRIORITIES: RequestPriority[] = ['Critical', 'Urgent', 'Routine'];
 
@@ -21,9 +22,19 @@ interface RaiseRequestFormProps {
   onSubmitted?: () => void;
 }
 
+function deriveContactDefaults(user: User | undefined): { contactName: string; contactPhone: string } {
+  if (!user) return { contactName: '', contactPhone: '' };
+  if (user.role === 'hospital') return { contactName: user.hospitalName, contactPhone: user.contactNumber || user.phone };
+  if (user.role === 'bloodbank') return { contactName: user.bankName, contactPhone: user.contactNumber || user.phone };
+  if (user.role === 'donor') return { contactName: user.name, contactPhone: user.phone };
+  return { contactName: '', contactPhone: '' };
+}
+
 export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, onSubmitted }: RaiseRequestFormProps) {
   const { t } = useTranslation();
   const createRequest = useHospitalRequestsStore((state) => state.createRequest);
+  const session = useSessionStore((state) => state.session);
+  const contactDefaults = deriveContactDefaults(session?.user);
 
   const form = useForm<RaiseRequestInput, unknown, RaiseRequestValues>({
     resolver: zodResolver(raiseRequestSchema),
@@ -32,8 +43,8 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
       bloodGroup: undefined,
       units: 1,
       priority: defaultPriority,
-      contactName: '',
-      contactPhone: '',
+      contactName: contactDefaults.contactName,
+      contactPhone: contactDefaults.contactPhone,
     },
   });
 
@@ -45,8 +56,8 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
         bloodGroup: undefined,
         units: 1,
         priority: defaultPriority,
-        contactName: '',
-        contactPhone: '',
+        contactName: contactDefaults.contactName,
+        contactPhone: contactDefaults.contactPhone,
       });
       onSubmitted?.();
       toast[result.ok ? 'success' : 'error'](result.message);

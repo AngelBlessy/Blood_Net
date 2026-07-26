@@ -5,7 +5,9 @@ const bloodRequestSchema = new mongoose.Schema(
   {
     // Null for guest-raised requests (phone-OTP verified, no hospital account).
     hospitalId: { type: mongoose.Schema.Types.ObjectId, ref: 'HospitalProfile', default: null },
-    raisedBy: { type: String, enum: ['hospital', 'guest'], required: true },
+    raisedBy: { type: String, enum: ['hospital', 'guest', 'donor', 'bloodbank'], required: true },
+    // Set for authenticated raisers (hospital/donor/bloodbank) so they can look up requests they raised; null for guests.
+    raisedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     guestName: { type: String, trim: true, default: null },
     guestPhone: { type: String, trim: true, default: null },
     contactName: { type: String, trim: true, default: null },

@@ -55,6 +55,8 @@ async function create(req, res) {
     raisedBy: 'guest',
     guestName: value.name,
     guestPhone: value.phone,
+    contactName: value.name,
+    contactPhone: value.phone,
     patient: value.patient,
     bloodGroup: value.bloodGroup,
     unitsRequired: value.units,

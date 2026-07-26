@@ -34,12 +34,17 @@ async function buildUserView(user) {
   if (user.role === 'hospital') {
     const profile = await HospitalProfile.findOne({ userId: user._id });
     if (!profile) return base;
+    if (!profile.contactNumber) {
+      profile.contactNumber = user.phone;
+      await profile.save();
+    }
     return {
       ...base,
       hospitalName: profile.hospitalName,
       licenseNumber: profile.licenseNumber,
       address: profile.address,
       city: profile.city,
+      contactNumber: profile.contactNumber,
       approvalStatus: profile.approvalStatus,
       hospitalId: profile._id.toString(),
     };

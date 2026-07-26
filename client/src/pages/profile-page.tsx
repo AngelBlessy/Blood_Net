@@ -9,6 +9,8 @@ import { apiPost } from '@/lib/api';
 import { TravelModeCard } from '@/components/profile/travel-mode-card';
 import { DonorAlertsCard } from '@/components/profile/donor-alerts-card';
 import { DonationHistoryCard } from '@/components/profile/donation-history-card';
+import { MyRaisedRequestsCard } from '@/components/profile/my-raised-requests-card';
+import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import type { User } from '@/types/domain';
 import type { TFunction } from 'i18next';
 
@@ -76,7 +78,10 @@ export function ProfilePage() {
 
       <div className="mt-8 grid gap-6 sm:grid-cols-2">
         <Card className="p-6">
-          <h3 className="font-semibold">{t('profileAccount')}</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-semibold">{t('profileAccount')}</h3>
+            {user.role === 'donor' && <EditProfileDialog donor={user} />}
+          </div>
           <dl className="mt-3 space-y-2 text-sm">
             {accountFields(user, t).map(([label, value]) => (
               <div key={label} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
@@ -92,6 +97,7 @@ export function ProfilePage() {
             <TravelModeCard />
             <DonationHistoryCard />
             <DonorAlertsCard />
+            <MyRaisedRequestsCard />
           </>
         )}
       </div>

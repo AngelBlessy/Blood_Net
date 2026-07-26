@@ -10,12 +10,12 @@ import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
 
 export function HospitalPage() {
   const { t } = useTranslation();
-  const requests = useHospitalRequestsStore((state) => state.requests);
-  const fetchRequests = useHospitalRequestsStore((state) => state.fetchRequests);
+  const requests = useHospitalRequestsStore((state) => state.myRequests);
+  const fetchMyRequests = useHospitalRequestsStore((state) => state.fetchMyRequests);
 
   useEffect(() => {
-    fetchRequests({ mine: true });
-  }, [fetchRequests]);
+    fetchMyRequests();
+  }, [fetchMyRequests]);
 
   const openRequests = requests.filter((request) => request.status !== 'Completed');
   const unitsNeeded = openRequests.reduce((total, request) => total + request.units, 0);

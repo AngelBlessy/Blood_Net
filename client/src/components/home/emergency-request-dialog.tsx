@@ -31,7 +31,8 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
   const [step, setStep] = useState<'form' | 'otp'>('form');
   const session = useSessionStore((state) => state.session);
   const guestRequest = useGuestRequest();
-  const isHospital = session?.user.role === 'hospital';
+  const canRaiseDirectly =
+    session?.user.role === 'hospital' || session?.user.role === 'bloodbank' || session?.user.role === 'donor';
 
   const form = useForm<GuestRequestInput, unknown, GuestRequestValues>({
     resolver: zodResolver(guestRequestSchema),
@@ -73,7 +74,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
         <DialogHeader>
           <DialogTitle>{t('modalTitle')}</DialogTitle>
           <DialogDescription>
-            {isHospital
+            {canRaiseDirectly
               ? t('modalDesc')
               : step === 'form'
                 ? "No account needed — verify your phone with a one-time code and compatible donors are alerted right away."
@@ -81,7 +82,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
           </DialogDescription>
         </DialogHeader>
 
-        {isHospital ? (
+        {canRaiseDirectly ? (
           <RaiseRequestForm submitLabel={t('modalSubmit')} onSubmitted={() => handleOpenChange(false)} />
         ) : step === 'otp' ? (
           <OtpForm

@@ -14,6 +14,9 @@ async function notifyDonorsForRequest(request) {
     };
   }
 
+  const contactName = request.contactName || request.guestName;
+  const contactPhone = request.contactPhone || request.guestPhone;
+
   const subject = `Urgent blood request: ${request.bloodGroup} needed`;
   const message = [
     'BloodNet emergency alert',
@@ -22,8 +25,8 @@ async function notifyDonorsForRequest(request) {
     `Blood group needed: ${request.bloodGroup}`,
     `Units needed: ${request.unitsRequired}`,
     `Priority: ${request.priority}`,
-    ...(request.contactName && request.contactPhone
-      ? ['', `Requested by: ${request.contactName} (${request.contactPhone})`]
+    ...(contactName && contactPhone
+      ? ['', `Requested by: ${contactName} (${contactPhone})`]
       : []),
     '',
     'Please respond to the hospital if you are available to donate.',

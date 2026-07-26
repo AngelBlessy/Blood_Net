@@ -10,7 +10,10 @@ const PHONE_PATTERN = /^\d{10}$/;
 
 async function attachResponses(requests) {
   const requestIds = requests.map((request) => request._id);
-  const responses = await DonorResponse.find({ requestId: { $in: requestIds } }).populate('donorId');
+  const responses = await DonorResponse.find({ requestId: { $in: requestIds } }).populate({
+    path: 'donorId',
+    populate: { path: 'userId' },
+  });
   const map = new Map();
   for (const response of responses) {
     if (!response.donorId) continue;
@@ -19,7 +22,9 @@ async function attachResponses(requests) {
     list.push({
       donorId: response.donorId._id.toString(),
       donorName: response.donorId.name,
+      donorPhone: response.donorId.userId ? response.donorId.userId.phone : null,
       response: response.response,
+      respondedAt: response.respondedAt,
     });
     map.set(key, list);
   }
@@ -49,10 +54,16 @@ function serializeRequest(request, responses = []) {
 async function list(req, res) {
   const filter = {};
   if (req.query.mine === 'true') {
-    if (!req.user || req.user.role !== 'hospital') return res.status(403).json({ error: 'Not authorized' });
-    const hospital = await HospitalProfile.findOne({ userId: req.user.id });
-    if (!hospital) return res.status(404).json({ error: 'Hospital profile not found.' });
-    filter.hospitalId = hospital._id;
+    if (!req.user) return res.status(403).json({ error: 'Not authorized' });
+    if (req.user.role === 'hospital') {
+      const hospital = await HospitalProfile.findOne({ userId: req.user.id });
+      if (!hospital) return res.status(404).json({ error: 'Hospital profile not found.' });
+      filter.hospitalId = hospital._id;
+    } else if (req.user.role === 'donor' || req.user.role === 'bloodbank') {
+      filter.raisedByUserId = req.user.id;
+    } else {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
   }
 
   const limit = Math.min(Number(req.query.limit) || 50, 100);
@@ -63,10 +74,13 @@ async function list(req, res) {
 }
 
 async function create(req, res) {
-  const hospital = await HospitalProfile.findOne({ userId: req.user.id });
-  if (!hospital) return res.status(404).json({ error: 'Hospital profile not found.' });
-  if (hospital.approvalStatus !== 'approved') {
-    return res.status(403).json({ error: 'Your hospital account is awaiting admin approval.' });
+  let hospital = null;
+  if (req.user.role === 'hospital') {
+    hospital = await HospitalProfile.findOne({ userId: req.user.id });
+    if (!hospital) return res.status(404).json({ error: 'Hospital profile not found.' });
+    if (hospital.approvalStatus !== 'approved') {
+      return res.status(403).json({ error: 'Your hospital account is awaiting admin approval.' });
+    }
   }
 
   const patient = String(req.body?.patient || '').trim();
@@ -84,8 +98,9 @@ async function create(req, res) {
   if (!PHONE_PATTERN.test(contactPhone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number.' });
 
   const request = await BloodRequest.create({
-    hospitalId: hospital._id,
-    raisedBy: 'hospital',
+    hospitalId: hospital ? hospital._id : null,
+    raisedBy: req.user.role,
+    raisedByUserId: req.user.id,
     patient,
     bloodGroup,
     unitsRequired: units,
@@ -108,7 +123,8 @@ async function create(req, res) {
 }
 
 // Admins can manage any request (needed for guest-raised requests, which have
-// no owning hospital account); hospitals can only manage their own.
+// no owning hospital account); hospitals can only manage their own; donor/bloodbank
+// raisers can manage requests they personally raised.
 async function requireOwnedRequest(req, res) {
   const request = await BloodRequest.findById(req.params.id);
   if (!request) {
@@ -116,6 +132,7 @@ async function requireOwnedRequest(req, res) {
     return null;
   }
   if (req.user.role === 'admin') return request;
+  if (request.raisedByUserId && request.raisedByUserId.toString() === req.user.id) return request;
 
   const hospital = await HospitalProfile.findOne({ userId: req.user.id });
   if (!hospital || !request.hospitalId || request.hospitalId.toString() !== hospital._id.toString()) {
@@ -160,8 +177,8 @@ async function update(req, res) {
 }
 
 async function notify(req, res) {
-  const request = await requireOwnedRequest(req, res);
-  if (!request) return;
+  const request = await BloodRequest.findById(req.params.id);
+  if (!request) return res.status(404).json({ error: 'Request not found.' });
 
   const alertResult = await notifyDonorsForRequest(request);
   request.matches = alertResult.matches;
