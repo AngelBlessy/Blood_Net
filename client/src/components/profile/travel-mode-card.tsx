@@ -3,22 +3,24 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { useSessionStore } from '@/store/session-store';
-import { useUsersStore } from '@/store/users-store';
+import { apiPatch, apiErrorMessage } from '@/lib/api';
 
 export function TravelModeCard() {
   const { t } = useTranslation();
   const session = useSessionStore((state) => state.session);
-  const updateSessionUser = useSessionStore((state) => state.updateSessionUser);
-  const updateUser = useUsersStore((state) => state.updateUser);
+  const setUser = useSessionStore((state) => state.setUser);
 
-  if (!session) return null;
-  const traveling = session.user.traveling;
+  if (!session || session.user.role !== 'donor') return null;
+  const donor = session.user;
 
-  function handleToggle(checked: boolean) {
-    if (!session) return;
-    updateUser(session.userKey, { traveling: checked });
-    updateSessionUser({ traveling: checked });
-    toast.success(checked ? t('toastTravelOn') : t('toastTravelOff'));
+  async function handleToggle(checked: boolean) {
+    try {
+      await apiPatch('/donors/me', { traveling: checked });
+      setUser({ ...donor, traveling: checked });
+      toast.success(checked ? t('toastTravelOn') : t('toastTravelOff'));
+    } catch (error) {
+      toast.error(apiErrorMessage(error, 'Could not update travel mode.'));
+    }
   }
 
   return (
@@ -27,9 +29,9 @@ export function TravelModeCard() {
       <p className="text-sm text-muted-foreground">{t('travelCardText')}</p>
       <div className="mt-2 flex items-center justify-between rounded-md border px-3 py-2.5">
         <span className="text-sm">
-          {t('travelCurrentStatus', { status: traveling ? t('statusOn') : t('statusOff') })}
+          {t('travelCurrentStatus', { status: donor.traveling ? t('statusOn') : t('statusOff') })}
         </span>
-        <Switch checked={traveling} onCheckedChange={handleToggle} aria-label={t('toggleTravelAria')} />
+        <Switch checked={donor.traveling} onCheckedChange={handleToggle} aria-label={t('toggleTravelAria')} />
       </div>
     </Card>
   );

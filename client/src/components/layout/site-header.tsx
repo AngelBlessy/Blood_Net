@@ -15,6 +15,8 @@ import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { LanguageSelect } from '@/components/layout/language-select';
 import { useSessionStore } from '@/store/session-store';
 import { useUiStore } from '@/store/ui-store';
+import { apiPost } from '@/lib/api';
+import type { User } from '@/types/domain';
 
 const NAV_LINKS = [
   { to: '/', label: 'navHome' },
@@ -29,24 +31,41 @@ const WORKSPACE_LINKS = [
   { to: '/admin', label: 'workspaceAdmin' },
 ] as const;
 
+function displayName(user: User): string {
+  if (user.role === 'donor') return user.name;
+  if (user.role === 'hospital') return user.hospitalName;
+  if (user.role === 'bloodbank') return user.bankName;
+  return 'Admin';
+}
+
 export function SiteHeader() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const session = useSessionStore((state) => state.session);
-  const logout = useSessionStore((state) => state.logout);
+  const setUser = useSessionStore((state) => state.setUser);
   const openAuthDialog = useUiStore((state) => state.openAuthDialog);
 
   function handleNavClick() {
     setMobileOpen(false);
   }
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await apiPost('/auth/logout').catch(() => {});
+    setUser(null);
     navigate('/');
   }
 
-  const initial = session?.user.name?.trim().charAt(0).toUpperCase() || 'D';
+  const workspaceLinks = session
+    ? WORKSPACE_LINKS.filter(
+        (link) =>
+          (link.to === '/hospital' && session.user.role === 'hospital') ||
+          (link.to === '/blood-bank' && session.user.role === 'bloodbank') ||
+          (link.to === '/admin' && session.user.role === 'admin')
+      )
+    : WORKSPACE_LINKS;
+
+  const initial = session ? displayName(session.user).trim().charAt(0).toUpperCase() || 'U' : 'U';
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
@@ -68,21 +87,23 @@ export function SiteHeader() {
             </Button>
           ))}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1">
-                {t('workspacesLabel')}
-                <ChevronDown className="size-3.5 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {WORKSPACE_LINKS.map((link) => (
-                <DropdownMenuItem key={link.to} asChild>
-                  <Link to={link.to}>{t(link.label)}</Link>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {workspaceLinks.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-1">
+                  {t('workspacesLabel')}
+                  <ChevronDown className="size-3.5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {workspaceLinks.map((link) => (
+                  <DropdownMenuItem key={link.to} asChild>
+                    <Link to={link.to}>{t(link.label)}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </nav>
 
         <div className="flex items-center gap-1.5">
@@ -145,8 +166,10 @@ export function SiteHeader() {
               </Button>
             ))}
 
-            <p className="mt-2 px-2 text-xs font-medium text-muted-foreground">{t('workspacesLabel')}</p>
-            {WORKSPACE_LINKS.map((link) => (
+            {workspaceLinks.length > 0 && (
+              <p className="mt-2 px-2 text-xs font-medium text-muted-foreground">{t('workspacesLabel')}</p>
+            )}
+            {workspaceLinks.map((link) => (
               <Button key={link.to} variant="ghost" size="sm" className="justify-start" asChild>
                 <Link to={link.to} onClick={handleNavClick}>
                   {t(link.label)}

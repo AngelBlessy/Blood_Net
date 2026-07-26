@@ -1,4 +1,5 @@
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const path = require('node:path');
 const fs = require('node:fs');
 const apiRouter = require('./routes');
@@ -11,6 +12,7 @@ function createApp() {
 
   app.disable('x-powered-by');
   app.use(express.json({ limit: '20kb' }));
+  app.use(cookieParser());
 
   app.use('/api', apiRouter);
   app.use(express.static(CLIENT_DIST_DIR));

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
@@ -10,6 +11,11 @@ import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
 export function HospitalPage() {
   const { t } = useTranslation();
   const requests = useHospitalRequestsStore((state) => state.requests);
+  const fetchRequests = useHospitalRequestsStore((state) => state.fetchRequests);
+
+  useEffect(() => {
+    fetchRequests({ mine: true });
+  }, [fetchRequests]);
 
   const openRequests = requests.filter((request) => request.status !== 'Completed');
   const unitsNeeded = openRequests.reduce((total, request) => total + request.units, 0);

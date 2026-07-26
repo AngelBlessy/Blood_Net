@@ -3,9 +3,11 @@ import { SiteHeader } from '@/components/layout/site-header';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { AuthDialog } from '@/components/auth/auth-dialog';
 import { useScrollToHash } from '@/hooks/use-scroll-to-hash';
+import { useBootstrapSession } from '@/hooks/use-bootstrap-session';
 
 export function RootLayout() {
   useScrollToHash();
+  useBootstrapSession();
 
   return (
     <div className="flex min-h-svh flex-col">
