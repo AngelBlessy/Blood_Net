@@ -31,17 +31,17 @@ export function HospitalPage() {
         <StatCard label={t('statDonorsMatched')} value={donorsMatched} />
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <Card className="p-6">
+      <div className="mt-8 space-y-6">
+        <Card className="gap-3 p-6">
           <span className="text-sm font-medium text-primary">{t('emergencyDeskEyebrow')}</span>
           <h2 className="mb-4 text-lg font-semibold">{t('raiseRequestTitle')}</h2>
           <RaiseRequestForm />
         </Card>
 
-        <Card className="p-6">
+        <Card className="gap-3 p-6">
           <span className="text-sm font-medium text-primary">{t('liveTrackingEyebrow')}</span>
           <h2 className="mb-4 text-lg font-semibold">{t('requestStatusTitle')}</h2>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {requests.length === 0 ? (
               <EmptyState>{t('noRequestsYet')}</EmptyState>
             ) : (

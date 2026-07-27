@@ -21,7 +21,7 @@ export function DonorAlertsCard() {
       const data = await apiGet<{ requests: DonorAlertRequest[] }>('/donors/me/alerts');
       setRequests(data.requests);
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not load your emergency alerts.'));
+      toast.error(apiErrorMessage(error, t('toastDonorAlertsLoadError')));
     } finally {
       setLoading(false);
     }
@@ -40,7 +40,7 @@ export function DonorAlertsCard() {
       setRequests((prev) => prev.map((request) => (request.id === requestId ? { ...request, myResponse: response } : request)));
       toast.success(t(response === 'Accepted' ? 'toastRequestAccepted' : 'toastRequestDeclined'));
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not record your response.'));
+      toast.error(apiErrorMessage(error, t('toastDonorResponseError')));
     }
   }
 

@@ -38,6 +38,10 @@ const env = {
     messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID || '',
   },
 
+  googleTranslate: {
+    apiKey: process.env.GOOGLE_TRANSLATE_API_KEY || '',
+  },
+
   isSmtpConfigured() {
     return Boolean(process.env.SMTP_USER) && !String(process.env.SMTP_USER).includes('your_');
   },
@@ -48,6 +52,10 @@ const env = {
         this.twilio.authToken &&
         (this.twilio.fromNumber || this.twilio.messagingServiceSid)
     );
+  },
+
+  isTranslateConfigured() {
+    return Boolean(this.googleTranslate.apiKey) && !this.googleTranslate.apiKey.includes('your_');
   },
 };
 

@@ -14,13 +14,13 @@ import {
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { LanguageSelect } from '@/components/layout/language-select';
 import { useSessionStore } from '@/store/session-store';
-import { useUiStore } from '@/store/ui-store';
 import { apiPost } from '@/lib/api';
+import i18n from '@/i18n';
 import type { User } from '@/types/domain';
 
 const NAV_LINKS = [
   { to: '/', label: 'navHome' },
-  { to: '/#roles', label: 'navRoles' },
+  { to: '/#compatibility', label: 'navCompatibility' },
   { to: '/#features', label: 'navFeatures' },
   { to: '/#faq', label: 'navFaq' },
 ] as const;
@@ -35,7 +35,7 @@ function displayName(user: User): string {
   if (user.role === 'donor') return user.name;
   if (user.role === 'hospital') return user.hospitalName;
   if (user.role === 'bloodbank') return user.bankName;
-  return 'Admin';
+  return i18n.t('adminDisplayName');
 }
 
 export function SiteHeader() {
@@ -44,7 +44,6 @@ export function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const session = useSessionStore((state) => state.session);
   const setUser = useSessionStore((state) => state.setUser);
-  const openAuthDialog = useUiStore((state) => state.openAuthDialog);
 
   function handleNavClick() {
     setMobileOpen(false);
@@ -131,16 +130,7 @@ export function SiteHeader() {
                 <DropdownMenuItem onSelect={handleLogout}>{t('logoutText')}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
-            <div className="hidden items-center gap-1.5 sm:flex">
-              <Button variant="ghost" size="sm" onClick={() => openAuthDialog('login')}>
-                {t('ctaLogin')}
-              </Button>
-              <Button size="sm" onClick={() => openAuthDialog('register')}>
-                {t('ctaRegister')}
-              </Button>
-            </div>
-          )}
+          ) : null}
 
           <Button
             variant="ghost"
@@ -177,18 +167,8 @@ export function SiteHeader() {
               </Button>
             ))}
 
-            <div className="mt-2 flex items-center justify-between gap-2 border-t pt-3">
+            <div className="mt-2 flex items-center gap-2 border-t pt-3">
               <LanguageSelect />
-              {!session && (
-                <div className="flex gap-1.5">
-                  <Button variant="ghost" size="sm" onClick={() => openAuthDialog('login')}>
-                    {t('ctaLogin')}
-                  </Button>
-                  <Button size="sm" onClick={() => openAuthDialog('register')}>
-                    {t('ctaRegister')}
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         </nav>

@@ -11,13 +11,20 @@ async function seed() {
 
   await connectDb();
 
-  const existing = await User.findOne({ email: env.admin.email });
+  const passwordHash = await bcrypt.hash(env.admin.password, 10);
+  const existing = await User.findOne({ role: 'admin' });
+
   if (existing) {
-    console.log(`Admin account already exists for ${env.admin.email}.`);
+    existing.email = env.admin.email;
+    existing.passwordHash = passwordHash;
+    existing.status = 'active';
+    existing.emailVerified = true;
+    existing.phoneVerified = true;
+    await existing.save();
+    console.log(`Admin account updated: ${env.admin.email}`);
     process.exit(0);
   }
 
-  const passwordHash = await bcrypt.hash(env.admin.password, 10);
   await User.create({
     email: env.admin.email,
     phone: '0000000000',

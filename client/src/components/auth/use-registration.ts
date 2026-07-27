@@ -31,7 +31,7 @@ export function useRegistration() {
       setPending({ email, phone, expiresAt: Date.now() + OTP_VALIDITY_MS, resendAt: Date.now() + OTP_RESEND_DELAY_MS });
       return { ok: result.ok, accountCreated: true, message: result.message };
     } catch (error) {
-      return { ok: false, accountCreated: false, message: apiErrorMessage(error, 'Something went wrong. Please try again.') };
+      return { ok: false, accountCreated: false, message: apiErrorMessage(error, t('errSomethingWentWrong')) };
     }
   }
 
@@ -56,7 +56,7 @@ export function useRegistration() {
       setPending((prev) => (prev ? { ...prev, resendAt: Date.now() + OTP_RESEND_DELAY_MS } : prev));
       return { ok: result.ok, message: result.message };
     } catch (error) {
-      return { ok: false, message: apiErrorMessage(error, 'Something went wrong sending the OTP.') };
+      return { ok: false, message: apiErrorMessage(error, t('errOtpSendFailed')) };
     }
   }
 

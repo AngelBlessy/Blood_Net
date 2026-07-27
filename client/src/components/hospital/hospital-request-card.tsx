@@ -40,7 +40,7 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
       const result = await notifyDonors(request.id);
       toast[result.ok ? 'success' : 'error'](result.message);
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Something went wrong sending alerts.'));
+      toast.error(apiErrorMessage(error, t('errAlertSendFailed')));
     } finally {
       setNotifying(false);
     }
@@ -56,16 +56,16 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
       setEditOpen(false);
       toast.success(t('toastRequestUpdated'));
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not update the request.'));
+      toast.error(apiErrorMessage(error, t('toastRequestUpdateError')));
     }
   }
 
   async function handleComplete() {
     try {
       await updateRequest(request.id, { status: 'Completed' });
-      toast.success('Request marked as completed. Donations logged for donors who accepted.');
+      toast.success(t('toastRequestCompleted'));
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not complete the request.'));
+      toast.error(apiErrorMessage(error, t('toastRequestCompleteError')));
     }
   }
 
@@ -92,8 +92,11 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
           </p>
           {request.raisedBy === 'guest' && (
             <p className="text-xs text-muted-foreground">
-              Raised by guest {request.guestName ? `${request.guestName} ` : ''}
-              {request.guestPhone ? `(${request.guestPhone})` : ''} — phone-verified, no hospital account
+              {t('raisedByGuestLine', {
+                name: [request.guestName, request.guestPhone ? `(${request.guestPhone})` : null]
+                  .filter(Boolean)
+                  .join(' '),
+              })}
             </p>
           )}
         </div>
@@ -103,7 +106,7 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
           </Badge>
           {request.raisedBy === 'guest' && (
             <Badge variant="destructive" className="text-[10px]">
-              Guest request
+              {t('guestRequestBadge')}
             </Badge>
           )}
         </div>

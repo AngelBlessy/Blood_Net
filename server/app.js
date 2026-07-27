@@ -11,7 +11,9 @@ function createApp() {
   const app = express();
 
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '20kb' }));
+  // 20kb was enough for the rest of the API, but the bulk /translate endpoint
+  // sends the whole UI dictionary (~15kb+ and growing) in one request.
+  app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
 
   app.use('/api', apiRouter);

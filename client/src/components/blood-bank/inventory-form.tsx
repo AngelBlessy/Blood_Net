@@ -26,7 +26,7 @@ export function InventoryForm() {
       toast.success(t('toastInventoryUpdated'));
       form.reset({ group: undefined, units: 0, expiry: '', location: '' });
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not update inventory.'));
+      toast.error(apiErrorMessage(error, t('toastInventoryUpdateError')));
     }
   }
 

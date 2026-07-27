@@ -4,11 +4,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { languages } from '@/i18n/languages';
 
 export function LanguageSelect() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <Select value={i18n.resolvedLanguage} onValueChange={(value) => void i18n.changeLanguage(value)}>
-      <SelectTrigger size="sm" className="w-auto gap-1.5 border-none shadow-none" aria-label="Language selection">
+      <SelectTrigger
+        size="sm"
+        className="w-auto gap-1.5 border-none shadow-none"
+        aria-label={t('languageSelectionAria')}
+      >
         <Globe className="size-4 text-muted-foreground" />
         <SelectValue />
       </SelectTrigger>

@@ -14,56 +14,54 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { editDonorProfileSchema, type EditDonorProfileInput, type EditDonorProfileValues } from './edit-profile-schema';
+import {
+  editBloodBankProfileSchema,
+  type EditBloodBankProfileInput,
+  type EditBloodBankProfileValues,
+} from './edit-profile-schema';
 import { ProfileOtpSection } from './profile-otp-section';
-import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
 import { useSessionStore } from '@/store/session-store';
 import { useProfileEditOtp } from '@/hooks/use-profile-edit-otp';
 import { apiPatch, apiErrorMessage } from '@/lib/api';
-import type { DonorUser, User } from '@/types/domain';
+import type { BloodBankUser, User } from '@/types/domain';
 
-interface EditProfileDialogProps {
-  donor: DonorUser;
+interface EditBloodBankProfileDialogProps {
+  bloodBank: BloodBankUser;
 }
 
-export function EditProfileDialog({ donor }: EditProfileDialogProps) {
+export function EditBloodBankProfileDialog({ bloodBank }: EditBloodBankProfileDialogProps) {
   const { t } = useTranslation();
   const setUser = useSessionStore((state) => state.setUser);
   const [open, setOpen] = useState(false);
-  const otp = useProfileEditOtp('/donors/me/profile/otp');
+  const otp = useProfileEditOtp('/auth/me/profile/otp');
 
-  const form = useForm<EditDonorProfileInput, unknown, EditDonorProfileValues>({
-    resolver: zodResolver(editDonorProfileSchema),
-    defaultValues: {
-      name: donor.name,
-      age: donor.age,
-      bloodGroup: donor.bloodGroup,
-      email: donor.email,
-      phone: donor.phone,
-      otp: '',
-    },
+  const defaults = {
+    bankName: bloodBank.bankName,
+    address: bloodBank.address ?? '',
+    city: bloodBank.city ?? '',
+    contactNumber: bloodBank.contactNumber ?? '',
+    email: bloodBank.email,
+    phone: bloodBank.phone,
+    otp: '',
+  };
+
+  const form = useForm<EditBloodBankProfileInput, unknown, EditBloodBankProfileValues>({
+    resolver: zodResolver(editBloodBankProfileSchema),
+    defaultValues: defaults,
   });
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (nextOpen) {
-      form.reset({
-        name: donor.name,
-        age: donor.age,
-        bloodGroup: donor.bloodGroup,
-        email: donor.email,
-        phone: donor.phone,
-        otp: '',
-      });
+      form.reset(defaults);
       otp.reset();
     }
   }
 
-  async function onSubmit(values: EditDonorProfileValues) {
+  async function onSubmit(values: EditBloodBankProfileValues) {
     try {
-      const data = await apiPatch<{ ok: boolean; user: User }>('/donors/me/profile', values);
+      const data = await apiPatch<{ ok: boolean; user: User }>('/auth/me/profile', values);
       setUser(data.user);
       toast.success(t('toastProfileUpdated'));
       handleOpenChange(false);
@@ -89,12 +87,12 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="name"
+              name="bankName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('fieldNameLabel')}</FormLabel>
+                  <FormLabel>{t('fieldBankNameLabel')}</FormLabel>
                   <FormControl>
-                    <Input autoComplete="name" {...field} />
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -104,12 +102,12 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="age"
+                name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldAgeLabel')}</FormLabel>
+                    <FormLabel>{t('fieldAddressLabel')}</FormLabel>
                     <FormControl>
-                      <Input type="number" min={1} {...field} value={(field.value as number | string | undefined) ?? ''} />
+                      <Input {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -117,29 +115,32 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
               />
               <FormField
                 control={form.control}
-                name="bloodGroup"
+                name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldBloodGroup')}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder={t('selectPlaceholderShort')} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {BLOOD_GROUPS.map((group) => (
-                          <SelectItem key={group} value={group}>
-                            {group}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>{t('fieldCityLabel')}</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="contactNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldContactNumberLabel')}</FormLabel>
+                  <FormControl>
+                    <Input type="tel" inputMode="numeric" maxLength={10} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
@@ -160,7 +161,7 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldPhoneLabel')}</FormLabel>
+                    <FormLabel>{t('fieldLoginPhoneLabel')}</FormLabel>
                     <FormControl>
                       <Input type="tel" inputMode="numeric" maxLength={10} autoComplete="tel" {...field} />
                     </FormControl>
@@ -173,8 +174,8 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
             <ProfileOtpSection
               control={form.control}
               otpFieldName="otp"
-              phone={donor.phone}
-              email={donor.email}
+              phone={bloodBank.phone}
+              email={bloodBank.email}
               otpSent={otp.otpSent}
               onSendCode={otp.sendCode}
               resendCountdown={otp.resendCountdown}

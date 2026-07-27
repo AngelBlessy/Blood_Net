@@ -15,7 +15,7 @@ export function FeaturesSection() {
   const { t } = useTranslation();
 
   return (
-    <section id="features" className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+    <section id="features" className="mx-auto max-w-7xl scroll-mt-[4.5rem] px-4 py-14 sm:px-6 lg:px-8">
       <div className="max-w-2xl">
         <span className="text-sm font-medium text-primary">{t('featuresEyebrow')}</span>
         <h2 className="mt-2 text-3xl font-semibold tracking-tight">{t('featuresTitle')}</h2>

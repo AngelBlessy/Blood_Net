@@ -24,7 +24,7 @@ export function HeroSection() {
   return (
     <section
       id="home"
-      className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:items-center lg:py-20 lg:px-8"
+      className="mx-auto grid max-w-7xl gap-10 px-4 py-6 sm:px-6 lg:grid-cols-2 lg:items-start lg:py-8 lg:px-8"
     >
       <div>
         <span className="inline-flex items-center gap-1.5 rounded-full border bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
@@ -46,10 +46,10 @@ export function HeroSection() {
               </Button>
             </>
           )}
-          <EmergencyRequestDialog variant="link" size="lg" />
+          <EmergencyRequestDialog variant="link" size="lg" className="text-base" />
         </div>
 
-        <dl className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <dl className="mt-10 grid grid-cols-2 gap-4">
           {stats.map(({ icon, value, labelKey, live }) => (
             <StatCard
               key={labelKey}

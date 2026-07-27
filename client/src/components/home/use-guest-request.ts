@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { apiPost, apiErrorMessage } from '@/lib/api';
 import type { GuestRequestValues } from './guest-request-schema';
 import type { FlowResult } from '@/components/auth/types';
@@ -13,6 +14,7 @@ interface PendingGuestRequest extends GuestRequestValues {
 }
 
 export function useGuestRequest() {
+  const { t } = useTranslation();
   const [pending, setPending] = useState<PendingGuestRequest | null>(null);
 
   async function requestOtp(values: GuestRequestValues): Promise<FlowResult> {
@@ -21,23 +23,23 @@ export function useGuestRequest() {
       setPending({ ...values, expiresAt: Date.now() + OTP_VALIDITY_MS, resendAt: Date.now() + OTP_RESEND_DELAY_MS });
       return { ok: result.ok, message: result.message };
     } catch (error) {
-      return { ok: false, message: apiErrorMessage(error, 'Something went wrong sending the code.') };
+      return { ok: false, message: apiErrorMessage(error, t('errCodeSendFailed')) };
     }
   }
 
   async function resendOtp(): Promise<FlowResult> {
-    if (!pending) return { ok: false, message: 'Please start again.' };
+    if (!pending) return { ok: false, message: t('errStartAgain') };
     try {
       const result = await apiPost<{ ok: boolean; message: string }>('/guest-requests/otp', pending);
       setPending((prev) => (prev ? { ...prev, resendAt: Date.now() + OTP_RESEND_DELAY_MS } : prev));
       return { ok: result.ok, message: result.message };
     } catch (error) {
-      return { ok: false, message: apiErrorMessage(error, 'Something went wrong sending the code.') };
+      return { ok: false, message: apiErrorMessage(error, t('errCodeSendFailed')) };
     }
   }
 
   async function verifyAndSubmit(otp: string): Promise<FlowResult> {
-    if (!pending) return { ok: false, message: 'Please start again.' };
+    if (!pending) return { ok: false, message: t('errStartAgain') };
     try {
       const result = await apiPost<{ ok: boolean; message: string; request: HospitalRequest }>('/guest-requests', {
         ...pending,
@@ -46,7 +48,7 @@ export function useGuestRequest() {
       setPending(null);
       return { ok: result.ok, message: result.message };
     } catch (error) {
-      return { ok: false, message: apiErrorMessage(error, 'Invalid code.') };
+      return { ok: false, message: apiErrorMessage(error, t('errInvalidCode')) };
     }
   }
 

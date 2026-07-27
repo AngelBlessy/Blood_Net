@@ -49,7 +49,7 @@ export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
               <FormControl>
                 <Input
                   type="email"
-                  placeholder="name@example.com"
+                  placeholder={t('emailAddressPlaceholder')}
                   autoComplete="off"
                   {...field}
                   readOnly

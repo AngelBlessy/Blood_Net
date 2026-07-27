@@ -51,16 +51,24 @@ async function requestProfileEditOtp(req, res) {
     return res.status(429).json({ error: 'Please wait before requesting another code.' });
   }
 
-  const deliveries = await issueOtp({ target: user.phone, purpose: EDIT_PROFILE_OTP_PURPOSE, phone: user.phone });
-  if (deliveries.sms === false) {
+  const deliveries = await issueOtp({
+    target: user.phone,
+    purpose: EDIT_PROFILE_OTP_PURPOSE,
+    email: user.email,
+    phone: user.phone,
+  });
+  const failed = [];
+  if (deliveries.email === false) failed.push('email');
+  if (deliveries.sms === false) failed.push('SMS');
+  if (failed.length) {
     return res.json({
       ok: true,
-      message: "We couldn't send the verification code by SMS right now. Use Resend to try again.",
+      message: `We couldn't send the verification code by ${failed.join(' and ')} right now. Use Resend to try again.`,
     });
   }
   return res.status(201).json({
     ok: true,
-    message: `A verification code has been sent to your phone ending in ${user.phone.slice(-4)}.`,
+    message: 'Same verification code has been sent to your registered email and phone.',
   });
 }
 

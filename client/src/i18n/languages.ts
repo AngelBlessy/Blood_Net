@@ -16,4 +16,10 @@ export const languages: Language[] = [
   { code: 'gu', label: 'Gujarati' },
   { code: 'pa', label: 'Punjabi' },
   { code: 'ur', label: 'Urdu' },
+  { code: 'as', label: 'Assamese' },
+  { code: 'ne', label: 'Nepali' },
+  { code: 'sa', label: 'Sanskrit' },
+  { code: 'sd', label: 'Sindhi' },
+  { code: 'mai', label: 'Maithili' },
+  { code: 'gom', label: 'Konkani' },
 ];

@@ -50,17 +50,17 @@ export function AdminPage() {
   }
 
   useEffect(() => {
-    refresh().catch((error) => toast.error(apiErrorMessage(error, 'Could not load admin data.')));
+    refresh().catch((error) => toast.error(apiErrorMessage(error, t('toastAdminLoadError'))));
     fetchRequests();
-  }, [fetchRequests]);
+  }, [fetchRequests, t]);
 
   async function decideHospital(id: string, decision: 'approve' | 'reject') {
     try {
       await apiPost(`/admin/hospitals/${id}/${decision}`);
       setPendingHospitals((prev) => prev.filter((hospital) => hospital.id !== id));
-      toast.success(`Hospital ${decision === 'approve' ? 'approved' : 'rejected'}.`);
+      toast.success(t(decision === 'approve' ? 'toastHospitalApproved' : 'toastHospitalRejected'));
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not update the hospital.'));
+      toast.error(apiErrorMessage(error, t('toastHospitalUpdateError')));
     }
   }
 
@@ -68,9 +68,9 @@ export function AdminPage() {
     try {
       await apiPost(`/admin/bloodbanks/${id}/${decision}`);
       setPendingBloodBanks((prev) => prev.filter((bank) => bank.id !== id));
-      toast.success(`Blood bank ${decision === 'approve' ? 'approved' : 'rejected'}.`);
+      toast.success(t(decision === 'approve' ? 'toastBloodBankApproved' : 'toastBloodBankRejected'));
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not update the blood bank.'));
+      toast.error(apiErrorMessage(error, t('toastBloodBankUpdateError')));
     }
   }
 
@@ -87,28 +87,28 @@ export function AdminPage() {
       </div>
 
       {(pendingHospitals.length > 0 || pendingBloodBanks.length > 0) && (
-        <div className="mt-8 grid gap-6 lg:grid-cols-2">
-          <Card className="p-6">
-            <span className="text-sm font-medium text-primary">Approvals</span>
-            <h2 className="mb-4 text-lg font-semibold">Pending hospitals</h2>
+        <div className="mt-8 grid items-start gap-6 lg:grid-cols-2">
+          <Card className="gap-3 p-6">
+            <span className="text-sm font-medium text-primary">{t('approvalsEyebrow')}</span>
+            <h2 className="mb-4 text-lg font-semibold">{t('pendingHospitalsTitle')}</h2>
             <div className="space-y-3">
               {pendingHospitals.length === 0 ? (
-                <EmptyState>No hospital registrations awaiting approval.</EmptyState>
+                <EmptyState>{t('noPendingHospitals')}</EmptyState>
               ) : (
                 pendingHospitals.map((hospital) => (
                   <Card key={hospital.id} className="flex-row items-center justify-between gap-3 p-4">
                     <div>
                       <h4 className="font-semibold">{hospital.hospitalName}</h4>
                       <p className="text-sm text-muted-foreground">
-                        License {hospital.licenseNumber} — {hospital.email}
+                        {t('licenseContactLine', { license: hospital.licenseNumber, email: hospital.email })}
                       </p>
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => decideHospital(hospital.id, 'approve')}>
-                        Approve
+                        {t('approveButton')}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => decideHospital(hospital.id, 'reject')}>
-                        Reject
+                        {t('rejectButton')}
                       </Button>
                     </div>
                   </Card>
@@ -117,12 +117,12 @@ export function AdminPage() {
             </div>
           </Card>
 
-          <Card className="p-6">
-            <span className="text-sm font-medium text-primary">Approvals</span>
-            <h2 className="mb-4 text-lg font-semibold">Pending blood banks</h2>
+          <Card className="gap-3 p-6">
+            <span className="text-sm font-medium text-primary">{t('approvalsEyebrow')}</span>
+            <h2 className="mb-4 text-lg font-semibold">{t('pendingBloodBanksTitle')}</h2>
             <div className="space-y-3">
               {pendingBloodBanks.length === 0 ? (
-                <EmptyState>No blood bank registrations awaiting approval.</EmptyState>
+                <EmptyState>{t('noPendingBloodBanks')}</EmptyState>
               ) : (
                 pendingBloodBanks.map((bank) => (
                   <Card key={bank.id} className="flex-row items-center justify-between gap-3 p-4">
@@ -132,10 +132,10 @@ export function AdminPage() {
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => decideBloodBank(bank.id, 'approve')}>
-                        Approve
+                        {t('approveButton')}
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => decideBloodBank(bank.id, 'reject')}>
-                        Reject
+                        {t('rejectButton')}
                       </Button>
                     </div>
                   </Card>
@@ -146,11 +146,11 @@ export function AdminPage() {
         </div>
       )}
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <Card className="p-6">
+      <div className="mt-8 space-y-6">
+        <Card className="gap-3 p-6">
           <span className="text-sm font-medium text-primary">{t('adminAlertsEyebrow')}</span>
           <h2 className="mb-4 text-lg font-semibold">{t('adminAlertsTitle')}</h2>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {lowStock.length === 0 ? (
               <EmptyState>{t('adminAllStocked')}</EmptyState>
             ) : (
@@ -169,10 +169,10 @@ export function AdminPage() {
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="gap-3 p-6">
           <span className="text-sm font-medium text-primary">{t('adminActivityEyebrow')}</span>
           <h2 className="mb-4 text-lg font-semibold">{t('adminActivityTitle')}</h2>
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {requests.length === 0 ? (
               <EmptyState>{t('adminNoRequests')}</EmptyState>
             ) : (

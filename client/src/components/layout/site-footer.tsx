@@ -33,8 +33,8 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link to="/#roles" className="text-muted-foreground hover:text-foreground">
-                {t('footerLink2')}
+              <Link to="/#compatibility" className="text-muted-foreground hover:text-foreground">
+                {t('navCompatibility')}
               </Link>
             </li>
             <li>

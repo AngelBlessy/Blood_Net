@@ -21,7 +21,7 @@ export function useForgotPassword() {
       setPending({ identifier: identifier.target });
       return { ok: result.ok, message: result.message };
     } catch (error) {
-      return { ok: false, message: apiErrorMessage(error, 'Something went wrong sending the OTP.') };
+      return { ok: false, message: apiErrorMessage(error, t('errOtpSendFailed')) };
     }
   }
 
@@ -40,7 +40,7 @@ export function useForgotPassword() {
       setPending(null);
       return { ok: result.ok, message: result.message };
     } catch (error) {
-      return { ok: false, message: apiErrorMessage(error, 'Something went wrong. Please try again.') };
+      return { ok: false, message: apiErrorMessage(error, t('errSomethingWentWrong')) };
     }
   }
 

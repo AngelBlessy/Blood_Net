@@ -11,6 +11,9 @@ import { DonorAlertsCard } from '@/components/profile/donor-alerts-card';
 import { DonationHistoryCard } from '@/components/profile/donation-history-card';
 import { MyRaisedRequestsCard } from '@/components/profile/my-raised-requests-card';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
+import { EditHospitalProfileDialog } from '@/components/profile/edit-hospital-profile-dialog';
+import { EditBloodBankProfileDialog } from '@/components/profile/edit-bloodbank-profile-dialog';
+import { EditAdminProfileDialog } from '@/components/profile/edit-admin-profile-dialog';
 import type { User } from '@/types/domain';
 import type { TFunction } from 'i18next';
 
@@ -39,11 +42,17 @@ function accountFields(user: User, t: TFunction): Array<[string, string]> {
       ...shared,
       [t('profileHospitalLabel'), user.hospitalName],
       [t('profileLicenseLabel'), user.licenseNumber],
+      ...(user.contactNumber ? ([[t('fieldContactPhone'), user.contactNumber]] as Array<[string, string]>) : []),
       [t('profileStatusLabel'), user.approvalStatus],
     ];
   }
   if (user.role === 'bloodbank') {
-    return [...shared, [t('profileBankLabel'), user.bankName], [t('profileStatusLabel'), user.approvalStatus]];
+    return [
+      ...shared,
+      [t('profileBankLabel'), user.bankName],
+      ...(user.contactNumber ? ([[t('fieldContactPhone'), user.contactNumber]] as Array<[string, string]>) : []),
+      [t('profileStatusLabel'), user.approvalStatus],
+    ];
   }
   return shared;
 }
@@ -81,6 +90,9 @@ export function ProfilePage() {
           <div className="flex items-center justify-between gap-2">
             <h3 className="font-semibold">{t('profileAccount')}</h3>
             {user.role === 'donor' && <EditProfileDialog donor={user} />}
+            {user.role === 'hospital' && <EditHospitalProfileDialog hospital={user} />}
+            {user.role === 'bloodbank' && <EditBloodBankProfileDialog bloodBank={user} />}
+            {user.role === 'admin' && <EditAdminProfileDialog admin={user} />}
           </div>
           <dl className="mt-3 space-y-2 text-sm">
             {accountFields(user, t).map(([label, value]) => (

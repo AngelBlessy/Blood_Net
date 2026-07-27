@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useSessionStore } from '@/store/session-store';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
+import i18n from '@/i18n';
 
 const POLL_INTERVAL_MS = 20000;
 
@@ -35,10 +36,8 @@ export function useDonorAcceptanceAlerts() {
             const key = `${request.id}:${entry.donorId}`;
             acceptedKeys.add(key);
             if (seenRef.current && !seenRef.current.has(key)) {
-              toast.success(
-                `${entry.donorName}${entry.donorPhone ? ` (${entry.donorPhone})` : ''} accepted to donate for "${request.patient}"`,
-                { duration: 10000 }
-              );
+              const name = entry.donorPhone ? `${entry.donorName} (${entry.donorPhone})` : entry.donorName;
+              toast.success(i18n.t('donorAcceptedToast', { name, patient: request.patient }), { duration: 10000 });
             }
           }
         }

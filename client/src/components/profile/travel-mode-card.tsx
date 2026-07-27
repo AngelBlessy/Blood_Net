@@ -19,7 +19,7 @@ export function TravelModeCard() {
       setUser({ ...donor, traveling: checked });
       toast.success(checked ? t('toastTravelOn') : t('toastTravelOff'));
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Could not update travel mode.'));
+      toast.error(apiErrorMessage(error, t('toastTravelModeError')));
     }
   }
 

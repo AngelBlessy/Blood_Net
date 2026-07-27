@@ -13,6 +13,7 @@ import { RaiseRequestForm } from '@/components/hospital/raise-request-form';
 import { guestRequestSchema, type GuestRequestInput, type GuestRequestValues } from './guest-request-schema';
 import { useGuestRequest } from './use-guest-request';
 import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
+import { PRIORITY_LABEL_KEYS } from '@/lib/request-labels';
 import { useSessionStore } from '@/store/session-store';
 import type { RequestPriority } from '@/types/domain';
 import type { VariantProps } from 'class-variance-authority';
@@ -59,7 +60,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
   }
 
   function handleVerified() {
-    toast.success('Request submitted — compatible donors are being alerted.');
+    toast.success(t('toastRequestSubmitted'));
     handleOpenChange(false);
   }
 
@@ -77,8 +78,8 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
             {canRaiseDirectly
               ? t('modalDesc')
               : step === 'form'
-                ? "No account needed — verify your phone with a one-time code and compatible donors are alerted right away."
-                : 'Enter the code sent to your phone to confirm and send the request.'}
+                ? t('guestDialogDescForm')
+                : t('guestDialogDescOtp')}
           </DialogDescription>
         </DialogHeader>
 
@@ -101,9 +102,9 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Your name</FormLabel>
+                      <FormLabel>{t('yourNameLabel')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Full name" autoComplete="name" {...field} />
+                        <Input placeholder={t('namePlaceholder')} autoComplete="name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -114,13 +115,13 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Your phone</FormLabel>
+                      <FormLabel>{t('yourPhoneLabel')}</FormLabel>
                       <FormControl>
                         <Input
                           type="tel"
                           inputMode="numeric"
                           maxLength={10}
-                          placeholder="10-digit phone number"
+                          placeholder={t('phonePlaceholder')}
                           autoComplete="tel"
                           {...field}
                         />
@@ -136,9 +137,9 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                 name="patient"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Patient / hospital reference</FormLabel>
+                    <FormLabel>{t('patientHospitalRefLabel')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Trauma patient at City Hospital, Ward 4" {...field} />
+                      <Input placeholder={t('patientHospitalRefPlaceholder')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -151,11 +152,11 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                   name="bloodGroup"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Blood group</FormLabel>
+                      <FormLabel>{t('fieldBloodGroup')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select" />
+                            <SelectValue placeholder={t('selectPlaceholderShort')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -175,7 +176,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                   name="units"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Units needed</FormLabel>
+                      <FormLabel>{t('fieldUnits')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -195,7 +196,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                 name="priority"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Priority</FormLabel>
+                    <FormLabel>{t('fieldPriority')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger className="w-full">
@@ -205,7 +206,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                       <SelectContent>
                         {PRIORITIES.map((priority) => (
                           <SelectItem key={priority} value={priority}>
-                            {priority}
+                            {t(PRIORITY_LABEL_KEYS[priority])}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -216,7 +217,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
               />
 
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Sending code…' : 'Send verification code'}
+                {form.formState.isSubmitting ? t('sendingCodeEllipsis') : t('sendVerificationCodeButton')}
               </Button>
             </form>
           </Form>

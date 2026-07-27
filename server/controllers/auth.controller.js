@@ -10,6 +10,7 @@ const { BLOOD_GROUPS } = require('../constants');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\d{10}$/;
+const EDIT_PROFILE_OTP_PURPOSE = 'edit-profile';
 
 function registrationTarget(email, phone) {
   return `${email}:${phone}`;
@@ -170,6 +171,99 @@ async function login(req, res) {
   return res.json({ ok: true, user: await buildUserView(user) });
 }
 
+// Donor edits go through /donors/me/profile; this covers hospital/bloodbank/admin.
+async function requestProfileEditOtp(req, res) {
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ error: 'Account not found.' });
+
+  const eligibility = await resendEligibility(user.phone, EDIT_PROFILE_OTP_PURPOSE);
+  if (!eligibility.eligible) {
+    return res.status(429).json({ error: 'Please wait before requesting another code.' });
+  }
+
+  const deliveries = await issueOtp({
+    target: user.phone,
+    purpose: EDIT_PROFILE_OTP_PURPOSE,
+    email: user.email,
+    phone: user.phone,
+  });
+  const failed = [];
+  if (deliveries.email === false) failed.push('email');
+  if (deliveries.sms === false) failed.push('SMS');
+  if (failed.length) {
+    return res.json({
+      ok: true,
+      message: `We couldn't send the verification code by ${failed.join(' and ')} right now. Use Resend to try again.`,
+    });
+  }
+  return res.status(201).json({
+    ok: true,
+    message: 'Same verification code has been sent to your registered email and phone.',
+  });
+}
+
+async function updateMyProfile(req, res) {
+  if (req.user.role === 'donor') {
+    return res.status(400).json({ error: 'Use the donor profile edit screen for donor accounts.' });
+  }
+
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ error: 'Account not found.' });
+
+  const otp = String(req.body?.otp || '');
+  const result = await verifyOtp({ target: user.phone, purpose: EDIT_PROFILE_OTP_PURPOSE, otp });
+  if (!result.ok) return res.status(400).json({ error: result.message });
+
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  const phone = String(req.body?.phone || '').trim();
+  if (!EMAIL_PATTERN.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
+  if (!PHONE_PATTERN.test(phone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number.' });
+
+  if (email !== user.email) {
+    const existingEmail = await User.findOne({ email, _id: { $ne: user._id } });
+    if (existingEmail) return res.status(409).json({ error: 'This email is already in use.' });
+  }
+  if (phone !== user.phone) {
+    const existingPhone = await User.findOne({ phone, _id: { $ne: user._id } });
+    if (existingPhone) return res.status(409).json({ error: 'This phone number is already in use.' });
+  }
+
+  if (user.role === 'hospital') {
+    const hospitalName = String(req.body?.hospitalName || '').trim();
+    const licenseNumber = String(req.body?.licenseNumber || '').trim();
+    if (!hospitalName) return res.status(400).json({ error: 'Enter the hospital name.' });
+    if (!licenseNumber) return res.status(400).json({ error: 'Enter the hospital license number.' });
+
+    const profile = await HospitalProfile.findOne({ userId: user._id });
+    if (!profile) return res.status(404).json({ error: 'Hospital profile not found.' });
+    profile.hospitalName = hospitalName;
+    profile.licenseNumber = licenseNumber;
+    profile.address = String(req.body?.address || '').trim();
+    profile.city = String(req.body?.city || '').trim();
+    profile.contactNumber = String(req.body?.contactNumber || phone).trim();
+    // Editing details doesn't revoke an existing approval.
+    await profile.save();
+  } else if (user.role === 'bloodbank') {
+    const bankName = String(req.body?.bankName || '').trim();
+    if (!bankName) return res.status(400).json({ error: 'Enter the blood bank name.' });
+
+    const profile = await BloodBankProfile.findOne({ userId: user._id });
+    if (!profile) return res.status(404).json({ error: 'Blood bank profile not found.' });
+    profile.bankName = bankName;
+    profile.address = String(req.body?.address || '').trim();
+    profile.city = String(req.body?.city || '').trim();
+    profile.contactNumber = String(req.body?.contactNumber || phone).trim();
+    await profile.save();
+  }
+  // admin has no extra profile fields beyond email/phone.
+
+  user.email = email;
+  user.phone = phone;
+  await user.save();
+
+  res.json({ ok: true, user: await buildUserView(user) });
+}
+
 function logout(_req, res) {
   clearAuthCookie(res);
   return res.json({ ok: true });
@@ -255,4 +349,6 @@ module.exports = {
   me,
   requestPasswordResetOtp,
   resetPassword,
+  requestProfileEditOtp,
+  updateMyProfile,
 };

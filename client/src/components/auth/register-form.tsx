@@ -228,7 +228,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
             <FormItem>
               <FormLabel>{t('fieldEmail')}</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="name@example.com" autoComplete="email" {...field} />
+                <Input type="email" placeholder={t('emailAddressPlaceholder')} autoComplete="email" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

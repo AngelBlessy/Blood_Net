@@ -11,11 +11,15 @@ import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const { resolvedTheme } = useTheme()
+  // Sonner only understands "light" | "dark" | "system" — the app's third
+  // "comfort" theme is a light-family palette, so map it to "light" here;
+  // actual colors still come from the CSS vars below, driven by .comfort.
+  const sonnerTheme: ToasterProps["theme"] = resolvedTheme === "dark" ? "dark" : "light"
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={sonnerTheme}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,

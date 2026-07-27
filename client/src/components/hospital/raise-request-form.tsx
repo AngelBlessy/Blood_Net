@@ -62,7 +62,7 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
       onSubmitted?.();
       toast[result.ok ? 'success' : 'error'](result.message);
     } catch (error) {
-      toast.error(apiErrorMessage(error, 'Something went wrong raising the request.'));
+      toast.error(apiErrorMessage(error, t('errRaiseRequestFailed')));
     }
   }
 
