@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { Download } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { apiGet, apiErrorMessage } from '@/lib/api';
 import i18n from '@/i18n';
@@ -63,7 +65,14 @@ export function DonationHistoryCard() {
           {summary.donations.map((donation) => (
             <div key={donation.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
               <span>{new Date(donation.donationDate).toLocaleDateString()}</span>
-              <span className="text-muted-foreground">{t('unitsCount', { count: donation.unitsDonated })}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-muted-foreground">{t('unitsCount', { count: donation.unitsDonated })}</span>
+                <Button variant="ghost" size="sm" className="h-auto gap-1 p-0 text-primary" asChild>
+                  <a href={`/api/donors/me/donations/${donation.id}/certificate`} download>
+                    <Download className="size-3.5" /> {t('downloadCertificateButton')}
+                  </a>
+                </Button>
+              </div>
             </div>
           ))}
         </div>

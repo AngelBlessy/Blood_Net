@@ -7,6 +7,7 @@ const { issueOtp, resendEligibility, verifyOtp } = require('../services/otp.serv
 const { buildUserView } = require('../services/user-view.service');
 const { signToken, setAuthCookie, clearAuthCookie } = require('../middleware/auth');
 const { BLOOD_GROUPS } = require('../constants');
+const { parseLocationFromBody } = require('../services/geo.service');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\d{10}$/;
@@ -67,6 +68,7 @@ async function register(req, res) {
     if (!Number.isInteger(age) || age < 1 || age > 120) return res.status(400).json({ error: 'Enter a valid age.' });
     if (!BLOOD_GROUPS.includes(bloodGroup)) return res.status(400).json({ error: 'Select a blood group.' });
 
+    const { city, location } = parseLocationFromBody(body);
     const user = await User.create({ email, phone, passwordHash, role: 'donor' });
     await DonorProfile.create({
       userId: user._id,
@@ -75,6 +77,8 @@ async function register(req, res) {
       bloodGroup,
       donatedEver,
       lastDonationDate: donatedEver === 'yes' && body.lastDonationDate ? new Date(body.lastDonationDate) : null,
+      city,
+      ...(location ? { location } : {}),
     });
     return finishRegistration(res, user, email, phone);
   }
@@ -85,6 +89,7 @@ async function register(req, res) {
     if (!hospitalName) return res.status(400).json({ error: 'Enter the hospital name.' });
     if (!licenseNumber) return res.status(400).json({ error: 'Enter the hospital license number.' });
 
+    const { location } = parseLocationFromBody(body);
     const user = await User.create({ email, phone, passwordHash, role: 'hospital' });
     await HospitalProfile.create({
       userId: user._id,
@@ -93,6 +98,7 @@ async function register(req, res) {
       address: String(body.address || '').trim(),
       city: String(body.city || '').trim(),
       contactNumber: String(body.contactNumber || phone).trim(),
+      ...(location ? { location } : {}),
     });
     return finishRegistration(res, user, email, phone);
   }
@@ -101,6 +107,7 @@ async function register(req, res) {
   const bankName = String(body.bankName || '').trim();
   if (!bankName) return res.status(400).json({ error: 'Enter the blood bank name.' });
 
+  const { location } = parseLocationFromBody(body);
   const user = await User.create({ email, phone, passwordHash, role: 'bloodbank' });
   await BloodBankProfile.create({
     userId: user._id,
@@ -108,6 +115,7 @@ async function register(req, res) {
     address: String(body.address || '').trim(),
     city: String(body.city || '').trim(),
     contactNumber: String(body.contactNumber || phone).trim(),
+    ...(location ? { location } : {}),
   });
   return finishRegistration(res, user, email, phone);
 }
@@ -241,6 +249,8 @@ async function updateMyProfile(req, res) {
     profile.address = String(req.body?.address || '').trim();
     profile.city = String(req.body?.city || '').trim();
     profile.contactNumber = String(req.body?.contactNumber || phone).trim();
+    const { location } = parseLocationFromBody(req.body);
+    if (location) profile.location = location;
     // Editing details doesn't revoke an existing approval.
     await profile.save();
   } else if (user.role === 'bloodbank') {
@@ -253,6 +263,8 @@ async function updateMyProfile(req, res) {
     profile.address = String(req.body?.address || '').trim();
     profile.city = String(req.body?.city || '').trim();
     profile.contactNumber = String(req.body?.contactNumber || phone).trim();
+    const { location } = parseLocationFromBody(req.body);
+    if (location) profile.location = location;
     await profile.save();
   }
   // admin has no extra profile fields beyond email/phone.

@@ -10,6 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { registerSchema, ROLE_OPTIONS, type RegisterInput, type RegisterValues } from './schemas';
 import type { useRegistration } from './use-registration';
 import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
+import { useGeolocation } from '@/hooks/use-geolocation';
+import { MapPin } from 'lucide-react';
 
 interface RegisterFormProps {
   submitRegistration: ReturnType<typeof useRegistration>['submitRegistration'];
@@ -20,6 +22,7 @@ const today = new Date().toISOString().slice(0, 10);
 
 export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProps) {
   const { t } = useTranslation();
+  const { requestLocation, loading: locating, error: locationError } = useGeolocation();
   const form = useForm<RegisterInput, unknown, RegisterValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -44,6 +47,15 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
 
   const role = form.watch('role');
   const donatedEver = form.watch('donatedEver');
+  const hasCoordinates = form.watch('lat') !== undefined && form.watch('lng') !== undefined;
+
+  async function handleUseLocation() {
+    const coords = await requestLocation();
+    if (coords) {
+      form.setValue('lat', coords.lat);
+      form.setValue('lng', coords.lng);
+    }
+  }
 
   async function onSubmit(values: RegisterValues) {
     const result = await submitRegistration(values);
@@ -83,19 +95,34 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
         />
 
         {role === 'donor' && (
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('fieldName')}</FormLabel>
-                <FormControl>
-                  <Input placeholder={t('namePlaceholder')} autoComplete="name" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <>
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldName')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('namePlaceholder')} autoComplete="name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldCity')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('cityPlaceholder')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
         )}
 
         {role === 'hospital' && (
@@ -175,6 +202,15 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
             />
           </div>
         )}
+
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={handleUseLocation} disabled={locating}>
+            <MapPin className="size-3.5" />
+            {locating ? t('locatingEllipsis') : t('useMyLocationButton')}
+          </Button>
+          {hasCoordinates && <span className="text-xs text-muted-foreground">{t('locationCapturedText')}</span>}
+          {locationError && <span className="text-xs text-destructive">{locationError}</span>}
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           {role === 'donor' && (

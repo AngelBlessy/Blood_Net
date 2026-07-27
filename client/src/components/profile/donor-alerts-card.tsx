@@ -65,6 +65,7 @@ export function DonorAlertsCard() {
                     <p className="text-sm text-muted-foreground">
                       {request.bloodGroup} — {t('unitsCount', { count: request.units })} —{' '}
                       {t(PRIORITY_LABEL_KEYS[request.priority])}
+                      {request.distanceKm !== null && ` — ${t('distanceAwayLabel', { km: request.distanceKm })}`}
                     </p>
                   </div>
                   {completed && <Badge variant="secondary">{t('statusCompleted')}</Badge>}

@@ -8,6 +8,11 @@ export type Role = 'donor' | 'hospital' | 'bloodbank' | 'admin';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
+export interface Coordinates {
+  lat: number;
+  lng: number;
+}
+
 interface BaseUser {
   id: string;
   email: string;
@@ -27,6 +32,8 @@ export interface DonorUser extends BaseUser {
   lastDonationDate: string | null;
   traveling: boolean;
   availabilityStatus: 'available' | 'unavailable';
+  city?: string | null;
+  coordinates?: Coordinates | null;
 }
 
 export interface HospitalUser extends BaseUser {
@@ -38,6 +45,7 @@ export interface HospitalUser extends BaseUser {
   city?: string;
   contactNumber?: string;
   approvalStatus: ApprovalStatus;
+  coordinates?: Coordinates | null;
 }
 
 export interface BloodBankUser extends BaseUser {
@@ -48,6 +56,7 @@ export interface BloodBankUser extends BaseUser {
   city?: string;
   contactNumber?: string;
   approvalStatus: ApprovalStatus;
+  coordinates?: Coordinates | null;
 }
 
 export interface AdminUser extends BaseUser {
@@ -95,6 +104,7 @@ export interface DonorAlertRequest {
   status: string;
   createdAt: string;
   myResponse: DonorResponse | null;
+  distanceKm: number | null;
 }
 
 export interface InventoryItem {

@@ -14,8 +14,13 @@ async function runEligibilityReminders() {
 
   for (const donor of donors) {
     if (!donor.userId) continue;
-    const { daysRemaining } = computeEligibility(donor.lastDonationDate);
-    if (daysRemaining !== REMINDER_WINDOW_DAYS) continue;
+    const { eligible, daysRemaining } = computeEligibility(donor.lastDonationDate);
+    // A range, not an exact match: the job only runs once a day, so an exact
+    // `=== REMINDER_WINDOW_DAYS` check would permanently skip a donor if the
+    // job didn't happen to run on the one day they crossed that threshold
+    // (deploy, downtime, etc). The dedupe check below is what actually
+    // prevents repeat sends, so widening this to a range is safe.
+    if (eligible || daysRemaining > REMINDER_WINDOW_DAYS) continue;
 
     const alreadySent = await Notification.findOne({
       userId: donor.userId._id,
@@ -24,7 +29,7 @@ async function runEligibilityReminders() {
     });
     if (alreadySent) continue;
 
-    const message = `You'll be eligible to donate again in ${REMINDER_WINDOW_DAYS} days. Thank you for being a BloodNet donor, ${donor.name}.`;
+    const message = `You'll be eligible to donate again in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}. Thank you for being a BloodNet donor, ${donor.name}.`;
     await Notification.create({ userId: donor.userId._id, title: NOTIFICATION_TITLE, message });
 
     try {

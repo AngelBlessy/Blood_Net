@@ -23,8 +23,10 @@ import {
 import { ProfileOtpSection } from './profile-otp-section';
 import { useSessionStore } from '@/store/session-store';
 import { useProfileEditOtp } from '@/hooks/use-profile-edit-otp';
+import { useGeolocation } from '@/hooks/use-geolocation';
 import { apiPatch, apiErrorMessage } from '@/lib/api';
 import type { HospitalUser, User } from '@/types/domain';
+import { MapPin } from 'lucide-react';
 
 interface EditHospitalProfileDialogProps {
   hospital: HospitalUser;
@@ -35,12 +37,15 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
   const setUser = useSessionStore((state) => state.setUser);
   const [open, setOpen] = useState(false);
   const otp = useProfileEditOtp('/auth/me/profile/otp');
+  const { requestLocation, loading: locating, error: locationError } = useGeolocation();
 
   const defaults = {
     hospitalName: hospital.hospitalName,
     licenseNumber: hospital.licenseNumber,
     address: hospital.address ?? '',
     city: hospital.city ?? '',
+    lat: hospital.coordinates?.lat,
+    lng: hospital.coordinates?.lng,
     contactNumber: hospital.contactNumber ?? '',
     email: hospital.email,
     phone: hospital.phone,
@@ -51,6 +56,16 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
     resolver: zodResolver(editHospitalProfileSchema),
     defaultValues: defaults,
   });
+
+  const hasCoordinates = form.watch('lat') !== undefined && form.watch('lng') !== undefined;
+
+  async function handleUseLocation() {
+    const coords = await requestLocation();
+    if (coords) {
+      form.setValue('lat', coords.lat);
+      form.setValue('lng', coords.lng);
+    }
+  }
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -141,6 +156,22 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
                   </FormItem>
                 )}
               />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleUseLocation}
+                disabled={locating}
+              >
+                <MapPin className="size-3.5" />
+                {locating ? t('locatingEllipsis') : t('useMyLocationButton')}
+              </Button>
+              {hasCoordinates && <span className="text-xs text-muted-foreground">{t('locationCapturedText')}</span>}
+              {locationError && <span className="text-xs text-destructive">{locationError}</span>}
             </div>
 
             <FormField

@@ -5,6 +5,9 @@ export const editDonorProfileSchema = z.object({
   name: z.string().trim().min(3, 'Name must be at least 3 characters.'),
   age: z.coerce.number().int().min(1, 'Enter a valid age.').max(120, 'Enter a valid age.'),
   bloodGroup: z.enum(BLOOD_GROUPS, { error: 'Select a blood group.' }),
+  city: z.string().trim().min(1, 'Enter your city.'),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
   email: z.string().trim().email('Enter a valid email address.'),
   phone: z
     .string()
@@ -34,6 +37,8 @@ export const editHospitalProfileSchema = z.object({
   licenseNumber: z.string().trim().min(1, 'Enter the hospital license number.'),
   address: z.string().trim().optional().or(z.literal('')),
   city: z.string().trim().optional().or(z.literal('')),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
   contactNumber: contactNumberField,
   email: emailField,
   phone: phoneField,
@@ -47,6 +52,8 @@ export const editBloodBankProfileSchema = z.object({
   bankName: z.string().trim().min(1, 'Enter the blood bank name.'),
   address: z.string().trim().optional().or(z.literal('')),
   city: z.string().trim().optional().or(z.literal('')),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
   contactNumber: contactNumberField,
   email: emailField,
   phone: phoneField,

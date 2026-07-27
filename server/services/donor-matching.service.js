@@ -1,19 +1,35 @@
 const DonorProfile = require('../models/donor-profile.model');
 const DonorResponse = require('../models/donor-response.model');
 const { isDonorCompatible } = require('./blood-compatibility.service');
+const { haversineKm } = require('./geo.service');
 
 const ELIGIBILITY_WINDOW_DAYS = 90;
 
-// Simple rule-based ranking (no ML/geolocation): donors who haven't donated in
-// a while score higher on eligibility, donors who reliably accept past alerts
-// score higher on responsiveness. Ties are broken by whichever compares first.
-async function findRankedDonors(bloodGroupNeeded) {
+// Simple rule-based ranking (no ML): donors who haven't donated in a while
+// score higher on eligibility, donors who reliably accept past alerts score
+// higher on responsiveness. Ties are broken by whichever compares first.
+//
+// `originPoint`/`radiusKm` (both optional) apply a distance *filter* only —
+// who's even in range to be considered — never a scoring weight. The scoring
+// formula itself intentionally stays untouched here (that's Feature 8's
+// territory, paused for now). Donors without location data always pass the
+// filter, so this never excludes profiles created before location existed.
+async function findRankedDonors(bloodGroupNeeded, { originPoint, radiusKm } = {}) {
   const candidates = await DonorProfile.find({ traveling: false, availabilityStatus: 'available' }).populate(
     'userId'
   );
-  const compatible = candidates.filter(
+  let compatible = candidates.filter(
     (donor) => donor.userId && donor.userId.status === 'active' && isDonorCompatible(bloodGroupNeeded, donor.bloodGroup)
   );
+
+  if (originPoint && radiusKm) {
+    compatible = compatible.filter((donor) => {
+      if (!donor.location) return true;
+      const distance = haversineKm(originPoint, donor.location);
+      return distance === null || distance <= radiusKm;
+    });
+  }
+
   if (!compatible.length) return [];
 
   const donorIds = compatible.map((donor) => donor._id);

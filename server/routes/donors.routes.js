@@ -11,5 +11,11 @@ router.post('/me/profile/otp', requireAuth, requireRole('donor'), asyncHandler(c
 router.patch('/me/profile', requireAuth, requireRole('donor'), asyncHandler(ctrl.updateMyProfile));
 router.get('/me/summary', requireAuth, requireRole('donor'), asyncHandler(ctrl.mySummary));
 router.get('/me/alerts', requireAuth, requireRole('donor'), asyncHandler(ctrl.myAlerts));
+router.get(
+  '/me/donations/:id/certificate',
+  requireAuth,
+  requireRole('donor'),
+  asyncHandler(ctrl.downloadCertificate)
+);
 
 module.exports = router;

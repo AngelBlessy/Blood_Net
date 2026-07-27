@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Session, User } from '@/types/domain';
+import { getSocket } from '@/lib/socket';
 
 interface SessionState {
   session: Session | null;
@@ -14,6 +15,12 @@ interface SessionState {
 export const useSessionStore = create<SessionState>((set) => ({
   session: null,
   hydrated: false,
-  setUser: (user) => set({ session: user ? { user } : null }),
+  setUser: (user) => {
+    set({ session: user ? { user } : null });
+    // The socket handshake reads the session cookie, so it only makes sense
+    // to hold a connection open while logged in.
+    if (user) getSocket().connect();
+    else getSocket().disconnect();
+  },
   setHydrated: () => set({ hydrated: true }),
 }));

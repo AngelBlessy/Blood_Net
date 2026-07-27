@@ -1,7 +1,8 @@
 const BloodRequest = require('../models/blood-request.model');
 const { issueOtp, resendEligibility, verifyOtp } = require('../services/otp.service');
 const { notifyDonorsForRequest } = require('../services/request-alert.service');
-const { BLOOD_GROUPS, REQUEST_PRIORITIES } = require('../constants');
+const { BLOOD_GROUPS, REQUEST_PRIORITIES, RADIUS_STEPS_KM } = require('../constants');
+const { parseLocationFromBody } = require('../services/geo.service');
 
 const PHONE_PATTERN = /^\d{10}$/;
 const OTP_PURPOSE = 'guest-request';
@@ -51,6 +52,8 @@ async function create(req, res) {
   const result = await verifyOtp({ target: value.phone, purpose: OTP_PURPOSE, otp });
   if (!result.ok) return res.status(400).json({ error: result.message });
 
+  const { location } = parseLocationFromBody(req.body);
+
   const request = await BloodRequest.create({
     raisedBy: 'guest',
     guestName: value.name,
@@ -62,6 +65,7 @@ async function create(req, res) {
     unitsRequired: value.units,
     priority: value.priority,
     status: 'Sending emergency alerts',
+    ...(location ? { location, searchRadiusKm: RADIUS_STEPS_KM[0] } : {}),
   });
 
   const alertResult = await notifyDonorsForRequest(request);

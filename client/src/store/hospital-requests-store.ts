@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { BloodGroup, DonorResponse, HospitalRequest, RequestPriority } from '@/types/domain';
 import { apiGet, apiPatch, apiPost } from '@/lib/api';
+import { getSocket } from '@/lib/socket';
 
 interface CreateRequestInput {
   patient: string;
@@ -9,6 +10,12 @@ interface CreateRequestInput {
   priority: RequestPriority;
   contactName: string;
   contactPhone: string;
+}
+
+function upsert(list: HospitalRequest[], updated: HospitalRequest) {
+  return list.some((entry) => entry.id === updated.id)
+    ? list.map((entry) => (entry.id === updated.id ? updated : entry))
+    : [updated, ...list];
 }
 
 function replaceInBoth(requests: HospitalRequest[], myRequests: HospitalRequest[], id: string, updated: HospitalRequest) {
@@ -80,3 +87,15 @@ export const useHospitalRequestsStore = create<HospitalRequestsState>((set) => (
     await apiPost(`/hospital-requests/${id}/respond`, { response });
   },
 }));
+
+// Live updates (donor accept/decline, hospital edits, radius escalation) —
+// the server only ever emits this for requests belonging to the connected
+// user's own hospital/account (see server/realtime/socket.js room scoping),
+// so it's always safe to merge into both lists here. A slow poll elsewhere
+// (see hospital-page.tsx) is kept as a fallback in case the socket drops.
+getSocket().on('request:update', (updated: HospitalRequest) => {
+  useHospitalRequestsStore.setState((state) => ({
+    requests: upsert(state.requests, updated),
+    myRequests: upsert(state.myRequests, updated),
+  }));
+});

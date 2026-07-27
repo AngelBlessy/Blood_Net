@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
-const { BLOOD_GROUPS, REQUEST_PRIORITIES } = require('../constants');
+const { BLOOD_GROUPS, REQUEST_PRIORITIES, RADIUS_STEPS_KM } = require('../constants');
+const { geoPointSchema } = require('./geo-point.schema');
+
+const ESCALATION_INTERVAL_MS = 10 * 60 * 1000;
 
 const bloodRequestSchema = new mongoose.Schema(
   {
@@ -18,8 +21,19 @@ const bloodRequestSchema = new mongoose.Schema(
     priority: { type: String, enum: REQUEST_PRIORITIES, default: 'Critical' },
     status: { type: String, default: 'New emergency request' },
     matches: { type: Number, default: 0 },
+    // Optional — copied from the hospital's registered location for
+    // hospital-raised requests, or captured via browser geolocation for
+    // guest/donor/bloodbank-raised requests. Absent means "no radius concept
+    // applies to this request," matching legacy no-location behavior.
+    location: { type: geoPointSchema, default: undefined },
+    searchRadiusKm: { type: Number, default: RADIUS_STEPS_KM[0] },
+    radiusExpansions: { type: Number, default: 0 },
+    nextEscalationAt: { type: Date, default: () => new Date(Date.now() + ESCALATION_INTERVAL_MS) },
+    escalationDone: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
+
+bloodRequestSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('BloodRequest', bloodRequestSchema);

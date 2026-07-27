@@ -1,6 +1,7 @@
 const DonorProfile = require('../models/donor-profile.model');
 const HospitalProfile = require('../models/hospital-profile.model');
 const BloodBankProfile = require('../models/blood-bank-profile.model');
+const { extractLatLng } = require('./geo.service');
 
 // Flattens a User + its role-specific profile into one object shaped close to
 // the client's existing `User` type, to minimize frontend churn.
@@ -28,6 +29,8 @@ async function buildUserView(user) {
       traveling: profile.traveling,
       availabilityStatus: profile.availabilityStatus,
       donorId: profile._id.toString(),
+      city: profile.city,
+      coordinates: extractLatLng(profile.location),
     };
   }
 
@@ -47,6 +50,7 @@ async function buildUserView(user) {
       contactNumber: profile.contactNumber,
       approvalStatus: profile.approvalStatus,
       hospitalId: profile._id.toString(),
+      coordinates: extractLatLng(profile.location),
     };
   }
 
@@ -61,6 +65,7 @@ async function buildUserView(user) {
       contactNumber: profile.contactNumber,
       approvalStatus: profile.approvalStatus,
       bankId: profile._id.toString(),
+      coordinates: extractLatLng(profile.location),
     };
   }
 

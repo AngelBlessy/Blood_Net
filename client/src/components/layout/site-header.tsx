@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { LanguageSelect } from '@/components/layout/language-select';
+import { NotificationsBell } from '@/components/layout/notifications-bell';
 import { useSessionStore } from '@/store/session-store';
 import { apiPost } from '@/lib/api';
 import i18n from '@/i18n';
@@ -20,6 +21,7 @@ import type { User } from '@/types/domain';
 
 const NAV_LINKS = [
   { to: '/', label: 'navHome' },
+  { to: '/search', label: 'navSearch' },
   { to: '/#compatibility', label: 'navCompatibility' },
   { to: '/#features', label: 'navFeatures' },
   { to: '/#faq', label: 'navFaq' },
@@ -109,6 +111,7 @@ export function SiteHeader() {
           <div className="hidden sm:block">
             <LanguageSelect />
           </div>
+          <NotificationsBell />
           <ThemeToggle />
 
           {session ? (

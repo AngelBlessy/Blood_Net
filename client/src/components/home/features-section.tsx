@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { Bell, Brain, ListOrdered, Award, MapPin, BarChart3 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
@@ -7,7 +8,7 @@ const FEATURES = [
   { icon: Brain, titleKey: 'feature2Title', descKey: 'feature2Desc' },
   { icon: ListOrdered, titleKey: 'feature3Title', descKey: 'feature3Desc' },
   { icon: Award, titleKey: 'feature4Title', descKey: 'feature4Desc' },
-  { icon: MapPin, titleKey: 'feature5Title', descKey: 'feature5Desc' },
+  { icon: MapPin, titleKey: 'feature5Title', descKey: 'feature5Desc', to: '/search' },
   { icon: BarChart3, titleKey: 'feature6Title', descKey: 'feature6Desc' },
 ] as const;
 
@@ -22,15 +23,25 @@ export function FeaturesSection() {
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {FEATURES.map(({ icon: Icon, titleKey, descKey }) => (
-          <Card key={titleKey} className="gap-3 p-5">
-            <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Icon className="size-5" />
-            </span>
-            <h3 className="font-semibold">{t(titleKey)}</h3>
-            <p className="text-sm text-muted-foreground">{t(descKey)}</p>
-          </Card>
-        ))}
+        {FEATURES.map(({ icon: Icon, titleKey, descKey, ...rest }) => {
+          const to = 'to' in rest ? rest.to : undefined;
+          const card = (
+            <Card className={`gap-3 p-5 ${to ? 'transition-colors hover:border-primary/40' : ''}`}>
+              <span className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Icon className="size-5" />
+              </span>
+              <h3 className="font-semibold">{t(titleKey)}</h3>
+              <p className="text-sm text-muted-foreground">{t(descKey)}</p>
+            </Card>
+          );
+          return to ? (
+            <Link key={titleKey} to={to}>
+              {card}
+            </Link>
+          ) : (
+            <div key={titleKey}>{card}</div>
+          );
+        })}
       </div>
     </section>
   );

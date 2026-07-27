@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const { APPROVAL_STATUSES } = require('../constants');
+const { geoPointSchema } = require('./geo-point.schema');
 
 const hospitalProfileSchema = new mongoose.Schema(
   {
@@ -10,8 +11,11 @@ const hospitalProfileSchema = new mongoose.Schema(
     city: { type: String, trim: true },
     contactNumber: { type: String, trim: true, default: null },
     approvalStatus: { type: String, enum: APPROVAL_STATUSES, default: 'pending' },
+    location: { type: geoPointSchema, default: undefined },
   },
   { timestamps: true }
 );
+
+hospitalProfileSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('HospitalProfile', hospitalProfileSchema);

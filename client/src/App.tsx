@@ -5,6 +5,7 @@ import { PageLoader } from '@/components/layout/page-loader';
 import { RequireRole } from '@/components/auth/require-role';
 import { HomePage } from '@/pages/home-page';
 
+const SearchPage = lazy(() => import('@/pages/search-page').then((m) => ({ default: m.SearchPage })));
 const HospitalPage = lazy(() => import('@/pages/hospital-page').then((m) => ({ default: m.HospitalPage })));
 const BloodBankPage = lazy(() => import('@/pages/blood-bank-page').then((m) => ({ default: m.BloodBankPage })));
 const AdminPage = lazy(() => import('@/pages/admin-page').then((m) => ({ default: m.AdminPage })));
@@ -20,6 +21,7 @@ function App() {
     <Routes>
       <Route element={<RootLayout />}>
         <Route index element={<HomePage />} />
+        <Route path="search" element={withSuspense(<SearchPage />)} />
         <Route
           path="hospital"
           element={withSuspense(

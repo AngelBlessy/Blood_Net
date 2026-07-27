@@ -41,9 +41,11 @@ export const registerSchema = z
     bankName: z.string().trim().optional(),
     contactNumber: z.string().trim().optional(),
 
-    // shared by hospital/bloodbank
+    // shared location fields
     address: z.string().trim().optional(),
     city: z.string().trim().optional(),
+    lat: z.number().optional(),
+    lng: z.number().optional(),
   })
   .superRefine((values, ctx) => {
     if (values.password !== values.confirmPassword) {
@@ -80,6 +82,9 @@ export const registerSchema = z
       }
       if (!values.bloodGroup) {
         ctx.addIssue({ code: 'custom', message: i18n.t('errBloodGroupRequired'), path: ['bloodGroup'] });
+      }
+      if (!values.city) {
+        ctx.addIssue({ code: 'custom', message: i18n.t('errCityRequired'), path: ['city'] });
       }
     }
 

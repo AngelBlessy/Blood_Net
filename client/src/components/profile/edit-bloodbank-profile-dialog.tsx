@@ -23,8 +23,10 @@ import {
 import { ProfileOtpSection } from './profile-otp-section';
 import { useSessionStore } from '@/store/session-store';
 import { useProfileEditOtp } from '@/hooks/use-profile-edit-otp';
+import { useGeolocation } from '@/hooks/use-geolocation';
 import { apiPatch, apiErrorMessage } from '@/lib/api';
 import type { BloodBankUser, User } from '@/types/domain';
+import { MapPin } from 'lucide-react';
 
 interface EditBloodBankProfileDialogProps {
   bloodBank: BloodBankUser;
@@ -35,11 +37,14 @@ export function EditBloodBankProfileDialog({ bloodBank }: EditBloodBankProfileDi
   const setUser = useSessionStore((state) => state.setUser);
   const [open, setOpen] = useState(false);
   const otp = useProfileEditOtp('/auth/me/profile/otp');
+  const { requestLocation, loading: locating, error: locationError } = useGeolocation();
 
   const defaults = {
     bankName: bloodBank.bankName,
     address: bloodBank.address ?? '',
     city: bloodBank.city ?? '',
+    lat: bloodBank.coordinates?.lat,
+    lng: bloodBank.coordinates?.lng,
     contactNumber: bloodBank.contactNumber ?? '',
     email: bloodBank.email,
     phone: bloodBank.phone,
@@ -50,6 +55,16 @@ export function EditBloodBankProfileDialog({ bloodBank }: EditBloodBankProfileDi
     resolver: zodResolver(editBloodBankProfileSchema),
     defaultValues: defaults,
   });
+
+  const hasCoordinates = form.watch('lat') !== undefined && form.watch('lng') !== undefined;
+
+  async function handleUseLocation() {
+    const coords = await requestLocation();
+    if (coords) {
+      form.setValue('lat', coords.lat);
+      form.setValue('lng', coords.lng);
+    }
+  }
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -126,6 +141,22 @@ export function EditBloodBankProfileDialog({ bloodBank }: EditBloodBankProfileDi
                   </FormItem>
                 )}
               />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={handleUseLocation}
+                disabled={locating}
+              >
+                <MapPin className="size-3.5" />
+                {locating ? t('locatingEllipsis') : t('useMyLocationButton')}
+              </Button>
+              {hasCoordinates && <span className="text-xs text-muted-foreground">{t('locationCapturedText')}</span>}
+              {locationError && <span className="text-xs text-destructive">{locationError}</span>}
             </div>
 
             <FormField

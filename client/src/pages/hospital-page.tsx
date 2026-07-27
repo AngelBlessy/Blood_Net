@@ -15,6 +15,10 @@ export function HospitalPage() {
 
   useEffect(() => {
     fetchMyRequests();
+    // Socket.IO pushes updates live; this is just a resilience fallback in
+    // case the connection drops without reconnecting.
+    const interval = setInterval(fetchMyRequests, 30_000);
+    return () => clearInterval(interval);
   }, [fetchMyRequests]);
 
   const openRequests = requests.filter((request) => request.status !== 'Completed');

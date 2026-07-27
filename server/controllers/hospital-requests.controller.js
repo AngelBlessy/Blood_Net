@@ -4,7 +4,10 @@ const Donation = require('../models/donation.model');
 const HospitalProfile = require('../models/hospital-profile.model');
 const DonorProfile = require('../models/donor-profile.model');
 const { notifyDonorsForRequest } = require('../services/request-alert.service');
-const { BLOOD_GROUPS, REQUEST_PRIORITIES } = require('../constants');
+const { BLOOD_GROUPS, REQUEST_PRIORITIES, RADIUS_STEPS_KM } = require('../constants');
+const { parseLocationFromBody } = require('../services/geo.service');
+const { emitToRequest } = require('../realtime/socket');
+const { notifyUser } = require('../services/notification.service');
 
 const PHONE_PATTERN = /^\d{10}$/;
 
@@ -47,6 +50,8 @@ function serializeRequest(request, responses = []) {
     guestPhone: request.guestPhone,
     contactName: request.contactName,
     contactPhone: request.contactPhone,
+    searchRadiusKm: request.location ? request.searchRadiusKm : null,
+    radiusExpansions: request.radiusExpansions,
     responses,
   };
 }
@@ -97,6 +102,11 @@ async function create(req, res) {
   if (!contactName) return res.status(400).json({ error: 'Enter a contact name.' });
   if (!PHONE_PATTERN.test(contactPhone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number.' });
 
+  // Prefer an explicit location from the request form (e.g. incident location);
+  // fall back to the raising hospital's registered location if none was given.
+  const { location: explicitLocation } = parseLocationFromBody(req.body);
+  const location = explicitLocation || (hospital ? hospital.location : null) || null;
+
   const request = await BloodRequest.create({
     hospitalId: hospital ? hospital._id : null,
     raisedBy: req.user.role,
@@ -108,6 +118,7 @@ async function create(req, res) {
     contactName,
     contactPhone,
     status: 'Sending emergency alerts',
+    ...(location ? { location, searchRadiusKm: RADIUS_STEPS_KM[0] } : {}),
   });
 
   const alertResult = await notifyDonorsForRequest(request);
@@ -115,10 +126,12 @@ async function create(req, res) {
   request.status = alertResult.matches > 0 ? alertResult.message : 'No compatible donors available';
   await request.save();
 
+  const serialized = serializeRequest(request, []);
+  emitToRequest(request, 'request:update', serialized);
   res.status(201).json({
     ok: alertResult.matches > 0,
     message: alertResult.message,
-    request: serializeRequest(request, []),
+    request: serialized,
   });
 }
 
@@ -173,7 +186,9 @@ async function update(req, res) {
   }
 
   const responseMap = await attachResponses([request]);
-  res.json({ ok: true, request: serializeRequest(request, responseMap.get(request._id.toString()) || []) });
+  const serialized = serializeRequest(request, responseMap.get(request._id.toString()) || []);
+  emitToRequest(request, 'request:update', serialized);
+  res.json({ ok: true, request: serialized });
 }
 
 async function notify(req, res) {
@@ -185,7 +200,10 @@ async function notify(req, res) {
   request.status = alertResult.matches > 0 ? alertResult.message : 'No compatible donors available';
   await request.save();
 
-  res.json({ ok: alertResult.matches > 0, message: alertResult.message, request: serializeRequest(request, []) });
+  const responseMap = await attachResponses([request]);
+  const serialized = serializeRequest(request, responseMap.get(request._id.toString()) || []);
+  emitToRequest(request, 'request:update', serialized);
+  res.json({ ok: alertResult.matches > 0, message: alertResult.message, request: serialized });
 }
 
 async function respond(req, res) {
@@ -206,6 +224,18 @@ async function respond(req, res) {
     { upsert: true, new: true }
   );
 
+  // Guest-raised requests have nobody logged in to notify — that's fine.
+  if (request.raisedByUserId) {
+    const verb = responseValue === 'Accepted' ? 'accepted' : 'declined';
+    notifyUser(
+      request.raisedByUserId,
+      `Donor ${verb} your request`,
+      `${donor.name} ${verb} the request for ${request.patient} (${request.bloodGroup}).`
+    );
+  }
+
+  const responseMap = await attachResponses([request]);
+  emitToRequest(request, 'request:update', serializeRequest(request, responseMap.get(request._id.toString()) || []));
   res.json({ ok: true });
 }
 

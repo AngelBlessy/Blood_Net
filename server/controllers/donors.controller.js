@@ -1,12 +1,16 @@
 const DonorProfile = require('../models/donor-profile.model');
 const BloodRequest = require('../models/blood-request.model');
 const DonorResponse = require('../models/donor-response.model');
+const Donation = require('../models/donation.model');
+const HospitalProfile = require('../models/hospital-profile.model');
 const User = require('../models/user.model');
 const { computeEligibility, donationSummary } = require('../services/donor-stats.service');
 const { isDonorCompatible } = require('../services/blood-compatibility.service');
 const { issueOtp, resendEligibility, verifyOtp } = require('../services/otp.service');
 const { buildUserView } = require('../services/user-view.service');
+const { streamDonationCertificate } = require('../services/certificate.service');
 const { BLOOD_GROUPS } = require('../constants');
+const { parseLocationFromBody, extractLatLng, haversineKm } = require('../services/geo.service');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\d{10}$/;
@@ -22,6 +26,8 @@ function serializeProfile(profile) {
     lastDonationDate: profile.lastDonationDate,
     traveling: profile.traveling,
     availabilityStatus: profile.availabilityStatus,
+    city: profile.city,
+    coordinates: extractLatLng(profile.location),
   };
 }
 
@@ -105,7 +111,9 @@ async function updateMyProfile(req, res) {
   user.phone = phone;
   await user.save();
 
-  const profile = await DonorProfile.findOneAndUpdate({ userId: user._id }, { name, age, bloodGroup }, { new: true });
+  const { city, location } = parseLocationFromBody(req.body);
+  const profileUpdates = { name, age, bloodGroup, ...(city ? { city } : {}), ...(location ? { location } : {}) };
+  const profile = await DonorProfile.findOneAndUpdate({ userId: user._id }, profileUpdates, { new: true });
   if (!profile) return res.status(404).json({ error: 'Donor profile not found.' });
 
   res.json({ ok: true, user: await buildUserView(user) });
@@ -135,14 +143,21 @@ async function myAlerts(req, res) {
   const profile = await DonorProfile.findOne({ userId: req.user.id });
   if (!profile) return res.status(404).json({ error: 'Donor profile not found.' });
 
-  const requests = await BloodRequest.find({ status: { $ne: 'Completed' } }).sort({ createdAt: -1 }).limit(50);
+  const requests = await BloodRequest.find({}).sort({ createdAt: -1 }).limit(100);
   const compatible = requests.filter((request) => isDonorCompatible(request.bloodGroup, profile.bloodGroup));
   const requestIds = compatible.map((request) => request._id);
   const myResponses = await DonorResponse.find({ donorId: profile._id, requestId: { $in: requestIds } });
   const responseMap = new Map(myResponses.map((response) => [response.requestId.toString(), response.response]));
 
+  // Still-open requests always show; completed ones only show if this donor
+  // actually responded to them (otherwise the list would fill up with
+  // long-resolved requests the donor was never involved in).
+  const relevant = compatible.filter(
+    (request) => request.status !== 'Completed' || responseMap.has(request._id.toString())
+  );
+
   res.json({
-    requests: compatible.map((request) => ({
+    requests: relevant.map((request) => ({
       id: request._id.toString(),
       patient: request.patient,
       bloodGroup: request.bloodGroup,
@@ -151,8 +166,40 @@ async function myAlerts(req, res) {
       status: request.status,
       createdAt: request.createdAt,
       myResponse: responseMap.get(request._id.toString()) || null,
+      distanceKm: request.location ? haversineKm(request.location, profile.location) : null,
     })),
   });
 }
 
-module.exports = { count, updateMe, requestProfileEditOtp, updateMyProfile, mySummary, myAlerts };
+async function downloadCertificate(req, res) {
+  const profile = await DonorProfile.findOne({ userId: req.user.id });
+  if (!profile) return res.status(404).json({ error: 'Donor profile not found.' });
+
+  const donation = await Donation.findOne({ _id: req.params.id, donorId: profile._id });
+  if (!donation) return res.status(404).json({ error: 'Donation not found.' });
+
+  let hospitalName = null;
+  if (donation.hospitalId) {
+    const hospital = await HospitalProfile.findById(donation.hospitalId);
+    hospitalName = hospital ? hospital.hospitalName : null;
+  }
+
+  streamDonationCertificate(res, {
+    donorName: profile.name,
+    bloodGroup: profile.bloodGroup,
+    donationDate: donation.donationDate,
+    unitsDonated: donation.unitsDonated,
+    hospitalName,
+    certificateId: donation._id.toString(),
+  });
+}
+
+module.exports = {
+  count,
+  updateMe,
+  requestProfileEditOtp,
+  updateMyProfile,
+  mySummary,
+  myAlerts,
+  downloadCertificate,
+};
