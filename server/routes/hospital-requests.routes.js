@@ -8,7 +8,9 @@ const router = Router();
 router.get('/', attachUserIfPresent, asyncHandler(ctrl.list));
 router.post('/', requireAuth, requireRole('hospital', 'donor', 'bloodbank'), asyncHandler(ctrl.create));
 // Admin can also manage guest-raised requests, which have no owning hospital.
-router.patch('/:id', requireAuth, requireRole('hospital', 'admin'), asyncHandler(ctrl.update));
+// donor/bloodbank are here because requireOwnedRequest() already scopes them
+// to requests they personally raised — this just lets that check run.
+router.patch('/:id', requireAuth, requireRole('hospital', 'donor', 'bloodbank', 'admin'), asyncHandler(ctrl.update));
 router.post('/:id/notify', requireAuth, requireRole('donor', 'hospital', 'bloodbank'), asyncHandler(ctrl.notify));
 router.post('/:id/respond', requireAuth, requireRole('donor'), asyncHandler(ctrl.respond));
 

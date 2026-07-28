@@ -72,33 +72,35 @@ export function InventoryForm() {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="expiry"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('fieldExpiryDate')}</FormLabel>
-              <FormControl>
-                <Input type="date" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="expiry"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('fieldExpiryDate')}</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="location"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('fieldStorageLocation')}</FormLabel>
-              <FormControl>
-                <Input placeholder={t('storageLocationPlaceholder')} {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="location"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('fieldStorageLocation')}</FormLabel>
+                <FormControl>
+                  <Input placeholder={t('storageLocationPlaceholder')} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
           {t('updateInventoryButton')}

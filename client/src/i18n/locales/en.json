@@ -156,6 +156,7 @@
   "statDonorsMatched": "Donors matched",
   "emergencyDeskEyebrow": "Emergency desk",
   "raiseRequestTitle": "Raise a blood request",
+  "raiseRequestButton": "Raise request",
   "liveTrackingEyebrow": "Live tracking",
   "requestStatusTitle": "Request status",
   "noRequestsYet": "No requests raised yet. Create an emergency request to notify matched donors.",
