@@ -79,9 +79,9 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden min-w-0 items-center gap-1 overflow-x-auto md:flex">
           {NAV_LINKS.map((link) => (
-            <Button key={link.to} variant="ghost" size="sm" asChild>
+            <Button key={link.to} variant="ghost" size="sm" className="shrink-0" asChild>
               <Link to={link.to} onClick={handleNavClick}>
                 {t(link.label)}
               </Link>
@@ -91,7 +91,7 @@ export function SiteHeader() {
           {workspaceLinks.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1">
+                <Button variant="ghost" size="sm" className="shrink-0 gap-1">
                   {t('workspacesLabel')}
                   <ChevronDown className="size-3.5 text-muted-foreground" />
                 </Button>
@@ -107,7 +107,7 @@ export function SiteHeader() {
           )}
         </nav>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <div className="hidden sm:block">
             <LanguageSelect />
           </div>

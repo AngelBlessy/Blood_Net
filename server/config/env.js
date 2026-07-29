@@ -1,4 +1,9 @@
-require('dotenv').config();
+// Anchor to the repo root regardless of the process's cwd (dotenv defaults
+// to resolving ".env" against process.cwd(), so starting the server from
+// inside server/ instead of the repo root would silently load no .env at
+// all — e.g. GOOGLE_TRANSLATE_API_KEY would look unset even after it's
+// filled in).
+require('dotenv').config({ path: require('node:path').join(__dirname, '..', '..', '.env') });
 
 function requireEnv(name) {
   const value = process.env[name];

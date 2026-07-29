@@ -8,8 +8,8 @@ async function translate(req, res) {
   if (!texts || !texts.length) return res.status(400).json({ error: 'texts must be a non-empty array.' });
   if (!target) return res.status(400).json({ error: 'target language is required.' });
 
-  const translations = await translateBatch(texts, target, source);
-  res.json({ translations });
+  const { translations, translated } = await translateBatch(texts, target, source);
+  res.json({ translations, translated });
 }
 
 module.exports = { translate };

@@ -5,7 +5,11 @@ type Dict = Record<string, string>;
 
 const englishDict = en as Dict;
 
-const CACHE_PREFIX = 'bloodnet.i18n.cache.v1.';
+// v2: bumped from v1 to invalidate caches written before the server signaled
+// `translated: false` on fallback — those entries permanently stored English
+// text as if it were a real translation, so switching language appeared to
+// do nothing even after the API key was fixed.
+const CACHE_PREFIX = 'bloodnet.i18n.cache.v2.';
 
 function cacheKeyFor(language: string) {
   return `${CACHE_PREFIX}${language}`;
@@ -59,7 +63,12 @@ async function translateChunk(texts: string[], language: string): Promise<string
 
   if (!response.ok) throw new Error(`Translate request failed with status ${response.status}`);
 
-  const data = (await response.json()) as { translations: string[] };
+  const data = (await response.json()) as { translations: string[]; translated: boolean };
+  // The server falls back to echoing the source text (still a 200 response)
+  // when the translation API key isn't configured or the upstream call
+  // fails. Treat that as a failure here too, so the caller's catch block
+  // fires instead of caching English text as if it were a real translation.
+  if (!data.translated) throw new Error(`Translation unavailable for target language: ${language}`);
   return data.translations;
 }
 

@@ -18,12 +18,16 @@ function cacheKey(target, text) {
 // Falls back to returning the original text (untranslated) whenever the API
 // key isn't configured yet or a request fails, so callers never have to
 // special-case a broken translation pipeline — the UI just shows English.
+// The `translated` flag tells the caller whether real translation happened
+// vs. this fallback, so a caller that caches results (see dynamic-backend.ts
+// on the client) knows not to cache an untranslated fallback as if it were
+// a real translation.
 async function translateBatch(texts, target, source = 'en') {
   const safeTexts = texts.slice(0, MAX_TEXTS_PER_CALL).map((text) => String(text).slice(0, MAX_TEXT_LENGTH));
-  if (!safeTexts.length || target === source) return safeTexts;
+  if (!safeTexts.length || target === source) return { translations: safeTexts, translated: true };
 
   if (!env.isTranslateConfigured()) {
-    return safeTexts;
+    return { translations: safeTexts, translated: false };
   }
 
   const results = new Array(safeTexts.length);
@@ -39,6 +43,8 @@ async function translateBatch(texts, target, source = 'en') {
       toFetchIndexes.push(index);
     }
   });
+
+  let translated = true;
 
   try {
     for (let i = 0; i < toFetch.length; i += MAX_BATCH_PER_REQUEST) {
@@ -68,12 +74,13 @@ async function translateBatch(texts, target, source = 'en') {
     }
   } catch (error) {
     console.error('Translation API error, falling back to source text:', error.message);
+    translated = false;
     toFetchIndexes.forEach((originalIndex, i) => {
       if (results[originalIndex] === undefined) results[originalIndex] = toFetch[i];
     });
   }
 
-  return results;
+  return { translations: results, translated };
 }
 
 module.exports = { translateBatch };
