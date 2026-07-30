@@ -94,6 +94,14 @@ function streamDonationCertificate(res, { donorName, bloodGroup, donationDate, u
   doc.moveTo(leftSigX, sigLineY).lineTo(leftSigX + sigWidth, sigLineY).lineWidth(0.75).strokeColor(INK).stroke();
   doc.moveTo(rightSigX, sigLineY).lineTo(rightSigX + sigWidth, sigLineY).stroke();
 
+  // Signatory names, sitting just above their line like an actual signature.
+  doc
+    .fillColor(INK)
+    .font('Times-Italic')
+    .fontSize(13)
+    .text('BloodNet Admin', leftSigX, sigLineY - 18, { width: sigWidth, align: 'center' });
+  doc.text('BloodNet Platform', rightSigX, sigLineY - 18, { width: sigWidth, align: 'center' });
+
   doc
     .fillColor(DARK_RED)
     .font('Helvetica-Bold')

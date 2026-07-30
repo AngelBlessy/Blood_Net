@@ -1,6 +1,7 @@
 const DonorProfile = require('../models/donor-profile.model');
 const { isDonorCompatible } = require('../services/blood-compatibility.service');
 const { haversineKm, jitterPoint } = require('../services/geo.service');
+const { computeDonorScores } = require('../services/priority-score.service');
 const { BLOOD_GROUPS } = require('../constants');
 
 const DEFAULT_RADIUS_KM = 25;
@@ -34,36 +35,48 @@ async function searchDonors(req, res) {
 
   const origin = hasOrigin ? { lat, lng } : null;
 
-  let results = candidates
+  let entries = candidates
     .filter((donor) => donor.userId && donor.userId.status === 'active' && isDonorCompatible(bloodGroup, donor.bloodGroup))
-    .map((donor) => {
-      const distanceKm = origin ? haversineKm(origin, donor.location) : null;
-      return { donor, distanceKm };
-    });
+    .map((donor) => ({ donor, distanceKm: origin ? haversineKm(origin, donor.location) : null }));
 
   if (origin) {
     // Donors without a location are excluded from a distance-based search
     // (there's nothing to rank them by), but never excluded from an
     // unfiltered/city-only search — see the else branch below.
-    results = results.filter((entry) => entry.distanceKm !== null && entry.distanceKm <= radiusKm);
-    results.sort((a, b) => a.distanceKm - b.distanceKm);
+    entries = entries.filter((entry) => entry.distanceKm !== null && entry.distanceKm <= radiusKm);
   } else if (city) {
-    results = results.filter((entry) => (entry.donor.city || '').toLowerCase().includes(city));
+    entries = entries.filter((entry) => (entry.donor.city || '').toLowerCase().includes(city));
   }
 
-  results = results.slice(0, MAX_RESULTS);
+  const distanceByDonorId = new Map(entries.map((entry) => [entry.donor._id.toString(), entry.distanceKm]));
+
+  // Ranked by priority score (AI probability + distance + eligibility recency +
+  // response rate + donation count — see priority-score.service.js) rather than
+  // distance alone, matching the spec's "ranked by a score that factors in
+  // distance, availability, and AI prediction" for this feature.
+  const scored = (
+    await computeDonorScores(
+      entries.map((entry) => entry.donor),
+      { originPoint: origin, radiusKm }
+    )
+  ).slice(0, MAX_RESULTS);
 
   res.json({
-    results: results.map(({ donor, distanceKm }) => ({
-      name: maskName(donor.name),
-      bloodGroup: donor.bloodGroup,
-      city: donor.city,
-      availabilityStatus: donor.availabilityStatus,
-      distanceKm: distanceKm === null ? null : Math.round(distanceKm * 10) / 10,
-      // Jittered — never the donor's real coordinates. Full contact info is
-      // only ever revealed once a donor accepts a specific request.
-      approxLocation: donor.location ? jitterPoint(donor.location) : null,
-    })),
+    results: scored.map(({ donor, priorityScore, aiConfidence }) => {
+      const distanceKm = distanceByDonorId.get(donor._id.toString());
+      return {
+        name: maskName(donor.name),
+        bloodGroup: donor.bloodGroup,
+        city: donor.city,
+        availabilityStatus: donor.availabilityStatus,
+        distanceKm: distanceKm == null ? null : Math.round(distanceKm * 10) / 10,
+        // Jittered — never the donor's real coordinates. Full contact info is
+        // only ever revealed once a donor accepts a specific request.
+        approxLocation: donor.location ? jitterPoint(donor.location) : null,
+        priorityScore,
+        aiConfidence,
+      };
+    }),
   });
 }
 

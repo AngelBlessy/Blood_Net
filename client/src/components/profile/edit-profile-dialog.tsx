@@ -44,6 +44,7 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
       age: donor.age,
       bloodGroup: donor.bloodGroup,
       city: donor.city ?? '',
+      state: donor.state ?? '',
       lat: donor.coordinates?.lat,
       lng: donor.coordinates?.lng,
       email: donor.email,
@@ -70,6 +71,7 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
         age: donor.age,
         bloodGroup: donor.bloodGroup,
         city: donor.city ?? '',
+        state: donor.state ?? '',
         lat: donor.coordinates?.lat,
         lng: donor.coordinates?.lng,
         email: donor.email,
@@ -160,19 +162,34 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('fieldCity')}</FormLabel>
-                  <FormControl>
-                    <Input placeholder={t('cityPlaceholder')} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('fieldCity')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('cityPlaceholder')} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="state"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('fieldState')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('statePlaceholder')} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="flex items-center gap-2">
               <Button

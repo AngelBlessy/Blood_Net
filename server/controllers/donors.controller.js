@@ -27,6 +27,7 @@ function serializeProfile(profile) {
     traveling: profile.traveling,
     availabilityStatus: profile.availabilityStatus,
     city: profile.city,
+    state: profile.state,
     coordinates: extractLatLng(profile.location),
   };
 }
@@ -111,8 +112,15 @@ async function updateMyProfile(req, res) {
   user.phone = phone;
   await user.save();
 
-  const { city, location } = parseLocationFromBody(req.body);
-  const profileUpdates = { name, age, bloodGroup, ...(city ? { city } : {}), ...(location ? { location } : {}) };
+  const { city, state, location } = parseLocationFromBody(req.body);
+  const profileUpdates = {
+    name,
+    age,
+    bloodGroup,
+    ...(city ? { city } : {}),
+    ...(state ? { state } : {}),
+    ...(location ? { location } : {}),
+  };
   const profile = await DonorProfile.findOneAndUpdate({ userId: user._id }, profileUpdates, { new: true });
   if (!profile) return res.status(404).json({ error: 'Donor profile not found.' });
 
@@ -144,18 +152,42 @@ async function myAlerts(req, res) {
   if (!profile) return res.status(404).json({ error: 'Donor profile not found.' });
 
   const requests = await BloodRequest.find({}).sort({ createdAt: -1 }).limit(100);
-  const compatible = requests.filter((request) => isDonorCompatible(request.bloodGroup, profile.bloodGroup));
-  const requestIds = compatible.map((request) => request._id);
-  const myResponses = await DonorResponse.find({ donorId: profile._id, requestId: { $in: requestIds } });
-  const responseMap = new Map(myResponses.map((response) => [response.requestId.toString(), response.response]));
-
-  // Still-open requests always show; completed ones only show if this donor
-  // is the one who accepted (and therefore donated). A donor who declined,
-  // or never responded, loses visibility once someone else fulfills it —
-  // otherwise it lingers forever in profiles it's no longer relevant to.
-  const relevant = compatible.filter(
-    (request) => request.status !== 'Completed' || responseMap.get(request._id.toString()) === 'Accepted'
+  const compatible = requests.filter(
+    (request) =>
+      isDonorCompatible(request.bloodGroup, profile.bloodGroup) &&
+      // A donor's own raised request belongs in their profile's "live tracking"
+      // (My Raised Requests), not in the alert/accept-reject feed for requests
+      // needing blood from them.
+      request.raisedByUserId?.toString() !== req.user.id
   );
+  const requestIds = compatible.map((request) => request._id);
+  // All donors' responses on these requests (not just mine) — needed to detect
+  // "someone else already accepted" so the request can disappear from every
+  // other donor's feed the moment it's taken, not just once the hospital marks
+  // it Completed.
+  const allResponses = await DonorResponse.find({ requestId: { $in: requestIds } });
+  const responseMap = new Map();
+  const acceptedByOther = new Set();
+  for (const response of allResponses) {
+    const key = response.requestId.toString();
+    if (response.donorId.toString() === profile._id.toString()) {
+      responseMap.set(key, response.response);
+    } else if (response.response === 'Accepted') {
+      acceptedByOther.add(key);
+    }
+  }
+
+  // Still-open requests always show; requests someone already accepted (whether
+  // marked Completed yet or not) only show if this donor is the one who
+  // accepted. A donor who declined, or never responded, loses visibility once
+  // someone else takes it — otherwise it lingers forever in profiles it's no
+  // longer relevant to.
+  const relevant = compatible.filter((request) => {
+    const key = request._id.toString();
+    const iAccepted = responseMap.get(key) === 'Accepted';
+    if (iAccepted) return true;
+    return request.status !== 'Completed' && !acceptedByOther.has(key);
+  });
 
   res.json({
     requests: relevant.map((request) => ({

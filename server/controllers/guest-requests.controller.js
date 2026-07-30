@@ -87,7 +87,15 @@ async function create(req, res) {
       createdAt: request.createdAt,
       hospitalId: null,
       raisedBy: 'guest',
+      raisedByUserId: null,
+      guestName: request.guestName,
+      guestPhone: request.guestPhone,
+      contactName: request.contactName,
+      contactPhone: request.contactPhone,
+      searchRadiusKm: request.location ? request.searchRadiusKm : null,
+      radiusExpansions: request.radiusExpansions,
       responses: [],
+      bankResponses: [],
     },
   });
 }

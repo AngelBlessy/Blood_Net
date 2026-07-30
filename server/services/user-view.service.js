@@ -30,6 +30,7 @@ async function buildUserView(user) {
       availabilityStatus: profile.availabilityStatus,
       donorId: profile._id.toString(),
       city: profile.city,
+      state: profile.state,
       coordinates: extractLatLng(profile.location),
     };
   }
@@ -47,6 +48,7 @@ async function buildUserView(user) {
       licenseNumber: profile.licenseNumber,
       address: profile.address,
       city: profile.city,
+      state: profile.state,
       contactNumber: profile.contactNumber,
       approvalStatus: profile.approvalStatus,
       hospitalId: profile._id.toString(),
@@ -62,6 +64,7 @@ async function buildUserView(user) {
       bankName: profile.bankName,
       address: profile.address,
       city: profile.city,
+      state: profile.state,
       contactNumber: profile.contactNumber,
       approvalStatus: profile.approvalStatus,
       bankId: profile._id.toString(),

@@ -13,6 +13,7 @@ const donorProfileSchema = new mongoose.Schema(
     traveling: { type: Boolean, default: false },
     availabilityStatus: { type: String, enum: ['available', 'unavailable'], default: 'available' },
     city: { type: String, trim: true, default: null },
+    state: { type: String, trim: true, default: null },
     // Optional — donors who never grant location access simply don't show up
     // in distance-ranked search/alerts, but everything else still works.
     location: { type: geoPointSchema, default: undefined },

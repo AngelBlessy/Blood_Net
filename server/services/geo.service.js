@@ -46,10 +46,11 @@ function toGeoPoint({ lat, lng }) {
 // means the profile ends up without a location, not a request failure.
 function parseLocationFromBody(body) {
   const city = typeof body?.city === 'string' ? body.city.trim() : '';
+  const state = typeof body?.state === 'string' ? body.state.trim() : '';
   const lat = Number(body?.lat);
   const lng = Number(body?.lng);
   const location = Number.isFinite(lat) && Number.isFinite(lng) ? toGeoPoint({ lat, lng }) : null;
-  return { city: city || null, location };
+  return { city: city || null, state: state || null, location };
 }
 
 // Offsets a point by up to ~maxOffsetKm in a random direction, for showing an

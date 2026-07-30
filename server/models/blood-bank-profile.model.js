@@ -8,6 +8,7 @@ const bloodBankProfileSchema = new mongoose.Schema(
     bankName: { type: String, required: true, trim: true },
     address: { type: String, trim: true },
     city: { type: String, trim: true },
+    state: { type: String, trim: true, default: null },
     contactNumber: { type: String, trim: true },
     approvalStatus: { type: String, enum: APPROVAL_STATUSES, default: 'pending' },
     location: { type: geoPointSchema, default: undefined },

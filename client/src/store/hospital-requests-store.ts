@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { BloodGroup, DonorResponse, HospitalRequest, RequestPriority } from '@/types/domain';
 import { apiGet, apiPatch, apiPost } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
+import { useSessionStore } from '@/store/session-store';
 
 interface CreateRequestInput {
   patient: string;
@@ -26,10 +27,16 @@ function replaceInBoth(requests: HospitalRequest[], myRequests: HospitalRequest[
 }
 
 function upsertInBoth(state: HospitalRequestsState, updated: HospitalRequest) {
+  const myUserId = useSessionStore.getState().session?.user.id;
+  // incomingRequests is specifically "requests raised by someone else" — a
+  // live push for a request the current user themselves raised (their own
+  // room echoing back their own edit) must never land in their own incoming
+  // feed, even though it's correct for requests/myRequests.
+  const isMine = myUserId != null && updated.raisedByUserId === myUserId;
   return {
     requests: upsert(state.requests, updated),
     myRequests: upsert(state.myRequests, updated),
-    incomingRequests: upsert(state.incomingRequests, updated),
+    incomingRequests: isMine ? state.incomingRequests : upsert(state.incomingRequests, updated),
   };
 }
 
@@ -54,6 +61,7 @@ interface HospitalRequestsState {
   createRequest: (input: CreateRequestInput) => Promise<{ ok: boolean; message: string }>;
   updateRequest: (id: string, updates: { patient?: string; units?: number; status?: 'Completed' }) => Promise<void>;
   notifyDonors: (id: string) => Promise<{ ok: boolean; message: string }>;
+  notifyAllDonors: (id: string) => Promise<{ ok: boolean; message: string }>;
   respond: (id: string, response: DonorResponse) => Promise<void>;
   respondAsBloodBank: (id: string, response: DonorResponse) => Promise<void>;
 }
@@ -107,6 +115,14 @@ export const useHospitalRequestsStore = create<HospitalRequestsState>((set) => (
   async notifyDonors(id) {
     const data = await apiPost<{ ok: boolean; message: string; request: HospitalRequest }>(
       `/hospital-requests/${id}/notify`
+    );
+    set((state) => replaceInBoth(state.requests, state.myRequests, id, data.request));
+    return { ok: data.ok, message: data.message };
+  },
+
+  async notifyAllDonors(id) {
+    const data = await apiPost<{ ok: boolean; message: string; request: HospitalRequest }>(
+      `/hospital-requests/${id}/notify-all`
     );
     set((state) => replaceInBoth(state.requests, state.myRequests, id, data.request));
     return { ok: data.ok, message: data.message };

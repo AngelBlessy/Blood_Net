@@ -39,6 +39,9 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
     resolver: zodResolver(guestRequestSchema),
     defaultValues: { name: '', phone: '', patient: '', bloodGroup: undefined, units: 1, priority: 'Critical' },
   });
+  // Same Radix Select stuck-value issue as raise-request-form: force a full
+  // remount whenever the form resets back to an undefined bloodGroup.
+  const [resetKey, setResetKey] = useState(0);
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -46,6 +49,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
       setStep('form');
       guestRequest.reset();
       form.reset();
+      setResetKey((key) => key + 1);
     }
   }
 
@@ -153,7 +157,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('fieldBloodGroup')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select key={`bloodGroup-${resetKey}`} onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder={t('selectPlaceholderShort')} />

@@ -33,6 +33,7 @@ export interface DonorUser extends BaseUser {
   traveling: boolean;
   availabilityStatus: 'available' | 'unavailable';
   city?: string | null;
+  state?: string | null;
   coordinates?: Coordinates | null;
 }
 
@@ -43,6 +44,7 @@ export interface HospitalUser extends BaseUser {
   licenseNumber: string;
   address?: string;
   city?: string;
+  state?: string | null;
   contactNumber?: string;
   approvalStatus: ApprovalStatus;
   coordinates?: Coordinates | null;
@@ -54,6 +56,7 @@ export interface BloodBankUser extends BaseUser {
   bankName: string;
   address?: string;
   city?: string;
+  state?: string | null;
   contactNumber?: string;
   approvalStatus: ApprovalStatus;
   coordinates?: Coordinates | null;
@@ -97,6 +100,7 @@ export interface HospitalRequest {
   createdAt: string;
   hospitalId: string | null;
   raisedBy: 'hospital' | 'guest' | 'donor' | 'bloodbank';
+  raisedByUserId: string | null;
   guestName?: string | null;
   guestPhone?: string | null;
   contactName?: string | null;

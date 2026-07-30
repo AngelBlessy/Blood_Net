@@ -19,12 +19,17 @@ import { apiPost } from '@/lib/api';
 import i18n from '@/i18n';
 import type { User } from '@/types/domain';
 
+// `core` links stay visible as soon as the desktop nav appears (md); the rest
+// only show from `lg` up — between md and lg there isn't room for all of
+// them plus the right-side actions (language/bell/theme/auth buttons), and
+// they'd otherwise get silently clipped by the nav's overflow-x-auto with no
+// visible scrollbar to hint more links exist.
 const NAV_LINKS = [
-  { to: '/', label: 'navHome' },
-  { to: '/search', label: 'navSearch' },
-  { to: '/#compatibility', label: 'navCompatibility' },
-  { to: '/#features', label: 'navFeatures' },
-  { to: '/#faq', label: 'navFaq' },
+  { to: '/', label: 'navHome', core: true },
+  { to: '/search', label: 'navSearch', core: true },
+  { to: '/#compatibility', label: 'navCompatibility', core: false },
+  { to: '/#features', label: 'navFeatures', core: false },
+  { to: '/#faq', label: 'navFaq', core: false },
 ] as const;
 
 const WORKSPACE_LINKS = [
@@ -81,7 +86,13 @@ export function SiteHeader() {
 
         <nav className="hidden min-w-0 items-center gap-1 overflow-x-auto md:flex">
           {NAV_LINKS.map((link) => (
-            <Button key={link.to} variant="ghost" size="sm" className="shrink-0" asChild>
+            <Button
+              key={link.to}
+              variant="ghost"
+              size="sm"
+              className={link.core ? 'shrink-0' : 'hidden shrink-0 lg:inline-flex'}
+              asChild
+            >
               <Link to={link.to} onClick={handleNavClick}>
                 {t(link.label)}
               </Link>

@@ -42,6 +42,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
       contactNumber: '',
       address: '',
       city: '',
+      state: '',
     },
   });
 
@@ -109,19 +110,34 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('fieldCity')}</FormLabel>
-                  <FormControl>
-                    <Input placeholder={t('cityPlaceholder')} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('fieldCity')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('cityPlaceholder')} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="state"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('fieldState')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('statePlaceholder')} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </>
         )}
 
@@ -195,6 +211,19 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
                   <FormLabel>{t('fieldCity')}</FormLabel>
                   <FormControl>
                     <Input placeholder={t('cityPlaceholder')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldState')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('statePlaceholder')} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -79,10 +79,10 @@ export function LiveRequestCard() {
   const openRequests = requests.filter((request) => request.status !== 'Completed');
 
   useEffect(() => {
-    fetchRequests({ limit: 50 });
+    fetchRequests({ limit: 50, status: 'pending' });
     // Requests completing elsewhere don't push a live update to this feed
     // (the server only notifies the raiser's own room), so poll instead.
-    const interval = setInterval(() => fetchRequests({ limit: 50 }), 30_000);
+    const interval = setInterval(() => fetchRequests({ limit: 50, status: 'pending' }), 30_000);
     return () => clearInterval(interval);
   }, [fetchRequests]);
 

@@ -23,7 +23,15 @@ interface SearchResult {
   availabilityStatus: 'available' | 'unavailable';
   distanceKm: number | null;
   approxLocation: { lat: number; lng: number } | null;
+  priorityScore: number;
+  aiConfidence: 'High' | 'Medium' | 'Low';
 }
+
+const AI_CONFIDENCE_LABEL_KEY: Record<SearchResult['aiConfidence'], 'aiProbHigh' | 'aiProbMedium' | 'aiProbLow'> = {
+  High: 'aiProbHigh',
+  Medium: 'aiProbMedium',
+  Low: 'aiProbLow',
+};
 
 const RADIUS_OPTIONS_KM = [10, 25, 50, 100];
 // Generic India-wide fallback center for the map before any coordinates exist.
@@ -156,18 +164,26 @@ export function SearchPage() {
             ) : (
               <div className="max-h-[380px] space-y-2 overflow-y-auto">
                 {results.map((result, index) => (
-                  <div key={index} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
-                    <div>
-                      <p className="font-medium">{result.name}</p>
-                      <p className="text-xs text-muted-foreground">{result.city ?? t('unknownLocation')}</p>
+                  <div key={index} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                        {result.name.charAt(0).toUpperCase()}
+                      </span>
+                      <div className="min-w-0 leading-tight">
+                        <p className="truncate font-medium">{result.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">{result.city ?? t('unknownLocation')}</p>
+                        <p className="text-xs text-muted-foreground">{t(AI_CONFIDENCE_LABEL_KEY[result.aiConfidence])}</p>
+                      </div>
                     </div>
-                    <div className="text-right">
+                    <div className="shrink-0 text-right leading-tight">
                       <Badge variant="outline">{result.bloodGroup}</Badge>
                       {result.distanceKm !== null && (
                         <p className="mt-1 text-xs text-muted-foreground">
                           {t('distanceAwayLabel', { km: result.distanceKm })}
                         </p>
                       )}
+                      <p className="mt-1 text-sm font-semibold">{result.priorityScore}</p>
+                      <p className="text-xs text-muted-foreground">{t('priorityScoreLabel')}</p>
                     </div>
                   </div>
                 ))}

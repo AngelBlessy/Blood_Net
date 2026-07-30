@@ -43,6 +43,7 @@ export function EditBloodBankProfileDialog({ bloodBank }: EditBloodBankProfileDi
     bankName: bloodBank.bankName,
     address: bloodBank.address ?? '',
     city: bloodBank.city ?? '',
+    state: bloodBank.state ?? '',
     lat: bloodBank.coordinates?.lat,
     lng: bloodBank.coordinates?.lng,
     contactNumber: bloodBank.contactNumber ?? '',
@@ -142,6 +143,20 @@ export function EditBloodBankProfileDialog({ bloodBank }: EditBloodBankProfileDi
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldState')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('statePlaceholder')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="flex items-center gap-2">
               <Button

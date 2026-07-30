@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { HospitalRequest } from '@/types/domain';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
+import { useSessionStore } from '@/store/session-store';
 import { PRIORITY_LABEL_KEYS, RESPONSE_LABEL_KEYS } from '@/lib/request-labels';
 import { apiErrorMessage } from '@/lib/api';
 
@@ -29,10 +30,13 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
   const { t } = useTranslation();
   const updateRequest = useHospitalRequestsStore((state) => state.updateRequest);
   const notifyDonors = useHospitalRequestsStore((state) => state.notifyDonors);
+  const notifyAllDonors = useHospitalRequestsStore((state) => state.notifyAllDonors);
+  const isHospital = useSessionStore((state) => state.session?.user.role === 'hospital');
   const [editOpen, setEditOpen] = useState(false);
   const [patientDraft, setPatientDraft] = useState(request.patient);
   const [unitsDraft, setUnitsDraft] = useState(String(request.units));
   const [notifying, setNotifying] = useState(false);
+  const [notifyingAll, setNotifyingAll] = useState(false);
 
   async function handleNotify() {
     setNotifying(true);
@@ -43,6 +47,18 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
       toast.error(apiErrorMessage(error, t('errAlertSendFailed')));
     } finally {
       setNotifying(false);
+    }
+  }
+
+  async function handleNotifyAll() {
+    setNotifyingAll(true);
+    try {
+      const result = await notifyAllDonors(request.id);
+      toast[result.ok ? 'success' : 'error'](result.message);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('errAlertSendFailed')));
+    } finally {
+      setNotifyingAll(false);
     }
   }
 
@@ -141,6 +157,18 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
           <Button variant="link" size="sm" className="h-auto p-0" onClick={handleNotify} disabled={notifying}>
             {notifying ? t('notifyingEllipsis') : t('requestDonorsLink')}
           </Button>
+          {isHospital && request.status !== 'Completed' && (
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-destructive"
+              onClick={handleNotifyAll}
+              disabled={notifyingAll}
+              title={t('notifyAllDonorsHint')}
+            >
+              {notifyingAll ? t('notifyingEllipsis') : t('notifyAllDonorsLink')}
+            </Button>
+          )}
           <Button variant="link" size="sm" className="h-auto gap-1 p-0" onClick={() => setEditOpen(true)}>
             <Pencil className="size-3" /> {t('editLink')}
           </Button>

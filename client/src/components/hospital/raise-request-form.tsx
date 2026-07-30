@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -35,6 +36,11 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
   const createRequest = useHospitalRequestsStore((state) => state.createRequest);
   const session = useSessionStore((state) => state.session);
   const contactDefaults = deriveContactDefaults(session?.user);
+  // Radix's Select silently keeps showing the last-picked item after
+  // form.reset() sets the field back to undefined (controlled -> uncontrolled
+  // switch it doesn't visually recover from) — forcing a full remount via a
+  // changing key is the reliable fix.
+  const [resetKey, setResetKey] = useState(0);
 
   const form = useForm<RaiseRequestInput, unknown, RaiseRequestValues>({
     resolver: zodResolver(raiseRequestSchema),
@@ -59,6 +65,7 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
         contactName: contactDefaults.contactName,
         contactPhone: contactDefaults.contactPhone,
       });
+      setResetKey((key) => key + 1);
       onSubmitted?.();
       toast[result.ok ? 'success' : 'error'](result.message);
     } catch (error) {
@@ -127,7 +134,7 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
             render={({ field }) => (
               <FormItem>
                 <FormLabel>{t('fieldBloodGroup')}</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select key={`bloodGroup-${resetKey}`} onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder={t('selectBloodGroupPlaceholder')} />

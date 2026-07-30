@@ -5,24 +5,48 @@ const { haversineKm } = require('./geo.service');
 
 const ELIGIBILITY_WINDOW_DAYS = 90;
 
+function sameText(a, b) {
+  return Boolean(a) && Boolean(b) && a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 // Simple rule-based ranking (no ML): donors who haven't donated in a while
 // score higher on eligibility, donors who reliably accept past alerts score
 // higher on responsiveness. Ties are broken by whichever compares first.
 //
-// `originPoint`/`radiusKm` (both optional) apply a distance *filter* only —
-// who's even in range to be considered — never a scoring weight. The scoring
-// formula itself intentionally stays untouched here (that's Feature 8's
-// territory, paused for now). Donors without location data always pass the
-// filter, so this never excludes profiles created before location existed.
-async function findRankedDonors(bloodGroupNeeded, { originPoint, radiusKm } = {}) {
-  const candidates = await DonorProfile.find({ traveling: false, availabilityStatus: 'available' }).populate(
-    'userId'
-  );
+// Filter options (all optional, and all filters only — never a scoring
+// weight; the scoring formula itself intentionally stays untouched here,
+// that's Feature 8's territory, paused for now):
+//   - `excludeUserId` — skip one specific donor (e.g. a donor alerting
+//     themselves about their own raised request).
+//   - `includeTraveling` — when true, skips the normal `traveling: false`
+//     exclusion (the hospital "notify all" override).
+//   - `city`/`state` — exact (case-insensitive) text match, used for
+//     Urgent/Routine priority instead of radius. Donors missing either field
+//     always pass (never excludes profiles from before this existed).
+//   - `originPoint`/`radiusKm` — distance filter, only applied when
+//     city/state weren't given (radius is the fallback path, e.g. /search).
+async function findRankedDonors(
+  bloodGroupNeeded,
+  { originPoint, radiusKm, excludeUserId, includeTraveling = false, city, state } = {}
+) {
+  const query = { availabilityStatus: 'available' };
+  if (!includeTraveling) query.traveling = false;
+
+  const candidates = await DonorProfile.find(query).populate('userId');
   let compatible = candidates.filter(
-    (donor) => donor.userId && donor.userId.status === 'active' && isDonorCompatible(bloodGroupNeeded, donor.bloodGroup)
+    (donor) =>
+      donor.userId &&
+      donor.userId.status === 'active' &&
+      isDonorCompatible(bloodGroupNeeded, donor.bloodGroup) &&
+      (!excludeUserId || donor.userId._id.toString() !== excludeUserId.toString())
   );
 
-  if (originPoint && radiusKm) {
+  if (city && state) {
+    compatible = compatible.filter((donor) => {
+      if (!donor.city || !donor.state) return true;
+      return sameText(donor.city, city) && sameText(donor.state, state);
+    });
+  } else if (originPoint && radiusKm) {
     compatible = compatible.filter((donor) => {
       if (!donor.location) return true;
       const distance = haversineKm(originPoint, donor.location);

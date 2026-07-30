@@ -26,6 +26,12 @@ const bloodRequestSchema = new mongoose.Schema(
     // guest/donor/bloodbank-raised requests. Absent means "no radius concept
     // applies to this request," matching legacy no-location behavior.
     location: { type: geoPointSchema, default: undefined },
+    // Copied from the raiser's profile at creation (or the guest form, when
+    // captured). Drives priority-based auto-alert matching for Urgent/Routine
+    // requests (exact city+state match) — separate concept from `location`,
+    // which drives the km-radius escalation job and stays untouched by this.
+    city: { type: String, trim: true, default: null },
+    state: { type: String, trim: true, default: null },
     searchRadiusKm: { type: Number, default: RADIUS_STEPS_KM[0] },
     radiusExpansions: { type: Number, default: 0 },
     nextEscalationAt: { type: Date, default: () => new Date(Date.now() + ESCALATION_INTERVAL_MS) },

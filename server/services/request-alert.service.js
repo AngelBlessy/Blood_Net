@@ -5,11 +5,34 @@ const { haversineKm } = require('./geo.service');
 const { notifyUser } = require('./notification.service');
 const BloodBankProfile = require('../models/blood-bank-profile.model');
 
-async function notifyDonorsForRequest(request) {
-  const donors = await findRankedDonors(request.bloodGroup, {
-    originPoint: request.location || null,
-    radiusKm: request.searchRadiusKm || null,
-  });
+// `options.includeTraveling` — the hospital's manual "notify all" override.
+// A donor is always excluded from being alerted about their own raised
+// request (derived from the request itself, not passed by callers) —
+// applies uniformly whether this runs at creation, a manual re-notify, or
+// the escalation job.
+async function notifyDonorsForRequest(request, options = {}) {
+  const { includeTraveling = false } = options;
+  const excludeUserId = request.raisedBy === 'donor' ? request.raisedByUserId : null;
+
+  // Critical requests broadcast to every compatible donor regardless of
+  // location; Urgent/Routine narrow to the requester's own city+state. If
+  // city/state weren't captured (older account, skipped it), fall back to
+  // the km-radius the request may have from GPS coordinates, and if that's
+  // absent too, fall back further to "everyone compatible" rather than
+  // silently alerting nobody.
+  const matchOptions =
+    request.priority === 'Critical'
+      ? { excludeUserId, includeTraveling }
+      : {
+          excludeUserId,
+          includeTraveling,
+          city: request.city || null,
+          state: request.state || null,
+          originPoint: request.location || null,
+          radiusKm: request.searchRadiusKm || null,
+        };
+
+  const donors = await findRankedDonors(request.bloodGroup, matchOptions);
 
   if (!donors.length) {
     return {

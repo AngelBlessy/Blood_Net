@@ -12,6 +12,7 @@ router.post('/', requireAuth, requireRole('hospital', 'donor', 'bloodbank'), asy
 // to requests they personally raised — this just lets that check run.
 router.patch('/:id', requireAuth, requireRole('hospital', 'donor', 'bloodbank', 'admin'), asyncHandler(ctrl.update));
 router.post('/:id/notify', requireAuth, requireRole('donor', 'hospital', 'bloodbank'), asyncHandler(ctrl.notify));
+router.post('/:id/notify-all', requireAuth, requireRole('hospital'), asyncHandler(ctrl.notifyAll));
 router.post('/:id/respond', requireAuth, requireRole('donor'), asyncHandler(ctrl.respond));
 router.post('/:id/respond-bank', requireAuth, requireRole('bloodbank'), asyncHandler(ctrl.respondBloodBank));
 

@@ -44,6 +44,7 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
     licenseNumber: hospital.licenseNumber,
     address: hospital.address ?? '',
     city: hospital.city ?? '',
+    state: hospital.state ?? '',
     lat: hospital.coordinates?.lat,
     lng: hospital.coordinates?.lng,
     contactNumber: hospital.contactNumber ?? '',
@@ -157,6 +158,20 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldState')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('statePlaceholder')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="flex items-center gap-2">
               <Button

@@ -71,6 +71,7 @@ function serializeRequest(request, responses = [], bankResponses = []) {
     createdAt: request.createdAt,
     hospitalId: request.hospitalId ? request.hospitalId.toString() : null,
     raisedBy: request.raisedBy,
+    raisedByUserId: request.raisedByUserId ? request.raisedByUserId.toString() : null,
     guestName: request.guestName,
     guestPhone: request.guestPhone,
     contactName: request.contactName,
@@ -148,12 +149,24 @@ async function list(req, res) {
 
 async function create(req, res) {
   let hospital = null;
+  let raiserCity = null;
+  let raiserState = null;
   if (req.user.role === 'hospital') {
     hospital = await HospitalProfile.findOne({ userId: req.user.id });
     if (!hospital) return res.status(404).json({ error: 'Hospital profile not found.' });
     if (hospital.approvalStatus !== 'approved') {
       return res.status(403).json({ error: 'Your hospital account is awaiting admin approval.' });
     }
+    raiserCity = hospital.city;
+    raiserState = hospital.state;
+  } else if (req.user.role === 'donor') {
+    const donor = await DonorProfile.findOne({ userId: req.user.id });
+    raiserCity = donor ? donor.city : null;
+    raiserState = donor ? donor.state : null;
+  } else if (req.user.role === 'bloodbank') {
+    const bank = await BloodBankProfile.findOne({ userId: req.user.id });
+    raiserCity = bank ? bank.city : null;
+    raiserState = bank ? bank.state : null;
   }
 
   const patient = String(req.body?.patient || '').trim();
@@ -186,6 +199,8 @@ async function create(req, res) {
     contactName,
     contactPhone,
     status: 'Sending emergency alerts',
+    city: raiserCity,
+    state: raiserState,
     ...(location ? { location, searchRadiusKm: RADIUS_STEPS_KM[0] } : {}),
   });
 
@@ -276,6 +291,31 @@ async function notify(req, res) {
   if (!request) return res.status(404).json({ error: 'Request not found.' });
 
   const alertResult = await notifyDonorsForRequest(request);
+  request.matches = alertResult.matches;
+  request.status = alertResult.matches > 0 ? alertResult.message : 'No compatible donors available';
+  await request.save();
+
+  const responseMap = await attachResponses([request]);
+  const bankResponseMap = await attachBankResponses([request]);
+  const serialized = serializeRequest(
+    request,
+    responseMap.get(request._id.toString()) || [],
+    bankResponseMap.get(request._id.toString()) || []
+  );
+  emitToRequest(request, 'request:update', serialized);
+  res.json({ ok: alertResult.matches > 0, message: alertResult.message, request: serialized });
+}
+
+// Hospital-only override for a critical request that isn't getting a
+// response: relaxes just the travelling-donor exclusion, keeps blood-group
+// compatibility. Available any time on the hospital's own request, not
+// gated to a timeout.
+async function notifyAll(req, res) {
+  const request = await requireOwnedRequest(req, res);
+  if (!request) return;
+  if (req.user.role !== 'hospital') return res.status(403).json({ error: 'Not authorized' });
+
+  const alertResult = await notifyDonorsForRequest(request, { includeTraveling: true });
   request.matches = alertResult.matches;
   request.status = alertResult.matches > 0 ? alertResult.message : 'No compatible donors available';
   await request.save();
@@ -420,4 +460,4 @@ async function respondBloodBank(req, res) {
   res.json({ ok: true, request: serialized });
 }
 
-module.exports = { list, create, update, notify, respond, respondBloodBank };
+module.exports = { list, create, update, notify, notifyAll, respond, respondBloodBank };

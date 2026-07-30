@@ -44,6 +44,7 @@ export const registerSchema = z
     // shared location fields
     address: z.string().trim().optional(),
     city: z.string().trim().optional(),
+    state: z.string().trim().optional(),
     lat: z.number().optional(),
     lng: z.number().optional(),
   })
@@ -86,6 +87,9 @@ export const registerSchema = z
       if (!values.city) {
         ctx.addIssue({ code: 'custom', message: i18n.t('errCityRequired'), path: ['city'] });
       }
+      if (!values.state) {
+        ctx.addIssue({ code: 'custom', message: i18n.t('errStateRequired'), path: ['state'] });
+      }
     }
 
     if (values.role === 'hospital') {
@@ -99,6 +103,10 @@ export const registerSchema = z
 
     if (values.role === 'bloodbank' && !values.bankName) {
       ctx.addIssue({ code: 'custom', message: i18n.t('errBankNameRequired'), path: ['bankName'] });
+    }
+
+    if ((values.role === 'hospital' || values.role === 'bloodbank') && !values.state) {
+      ctx.addIssue({ code: 'custom', message: i18n.t('errStateRequired'), path: ['state'] });
     }
   });
 
