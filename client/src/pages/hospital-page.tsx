@@ -22,6 +22,7 @@ export function HospitalPage() {
   }, [fetchMyRequests]);
 
   const openRequests = requests.filter((request) => request.status !== 'Completed');
+  const completedRequests = requests.filter((request) => request.status === 'Completed');
   const unitsNeeded = openRequests.reduce((total, request) => total + request.units, 0);
   const donorsMatched = openRequests.reduce((total, request) => total + request.matches, 0);
 
@@ -46,12 +47,24 @@ export function HospitalPage() {
           <span className="text-sm font-medium text-primary">{t('liveTrackingEyebrow')}</span>
           <h2 className="mb-4 text-lg font-semibold">{t('requestStatusTitle')}</h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {requests.length === 0 ? (
+            {openRequests.length === 0 ? (
               <EmptyState>{t('noRequestsYet')}</EmptyState>
             ) : (
-              requests.slice(0, 8).map((request) => (
+              openRequests.slice(0, 8).map((request) => (
                 <HospitalRequestCard key={request.id} request={request} showActions />
               ))
+            )}
+          </div>
+        </Card>
+
+        <Card className="gap-3 p-6">
+          <span className="text-sm font-medium text-primary">{t('completedRequestsEyebrow')}</span>
+          <h2 className="mb-4 text-lg font-semibold">{t('completedRequestsTitle')}</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {completedRequests.length === 0 ? (
+              <EmptyState>{t('noCompletedRequestsYet')}</EmptyState>
+            ) : (
+              completedRequests.slice(0, 8).map((request) => <HospitalRequestCard key={request.id} request={request} />)
             )}
           </div>
         </Card>

@@ -13,5 +13,6 @@ router.post('/', requireAuth, requireRole('hospital', 'donor', 'bloodbank'), asy
 router.patch('/:id', requireAuth, requireRole('hospital', 'donor', 'bloodbank', 'admin'), asyncHandler(ctrl.update));
 router.post('/:id/notify', requireAuth, requireRole('donor', 'hospital', 'bloodbank'), asyncHandler(ctrl.notify));
 router.post('/:id/respond', requireAuth, requireRole('donor'), asyncHandler(ctrl.respond));
+router.post('/:id/respond-bank', requireAuth, requireRole('bloodbank'), asyncHandler(ctrl.respondBloodBank));
 
 module.exports = router;

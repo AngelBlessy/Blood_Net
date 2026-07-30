@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { useSessionStore } from '@/store/session-store';
 import { PRIORITY_LABEL_KEYS, RESPONSE_LABEL_KEYS } from '@/lib/request-labels';
 import { apiGet, apiPost, apiErrorMessage } from '@/lib/api';
+import { computeEligibility } from '@/lib/donor-eligibility';
 import type { DonorAlertRequest, DonorResponse } from '@/types/domain';
 
 export function DonorAlertsCard() {
@@ -35,6 +36,16 @@ export function DonorAlertsCard() {
   const donor = session.user;
 
   async function handleRespond(requestId: string, response: DonorResponse) {
+    // Instant local check (no round trip) — the server re-checks this too,
+    // since it's the actual source of truth (see hospital-requests.controller.js).
+    if (response === 'Accepted') {
+      const eligibility = computeEligibility(donor.lastDonationDate);
+      if (!eligibility.eligible) {
+        toast.error(t('notEligibleDaysMessage', { days: eligibility.daysRemaining }));
+        return;
+      }
+    }
+
     try {
       await apiPost(`/hospital-requests/${requestId}/respond`, { response });
       setRequests((prev) => prev.map((request) => (request.id === requestId ? { ...request, myResponse: response } : request)));

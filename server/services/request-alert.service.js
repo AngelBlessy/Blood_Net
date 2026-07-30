@@ -3,6 +3,7 @@ const { sendMail } = require('./mailer.service');
 const { sendSms } = require('./sms.service');
 const { haversineKm } = require('./geo.service');
 const { notifyUser } = require('./notification.service');
+const BloodBankProfile = require('../models/blood-bank-profile.model');
 
 async function notifyDonorsForRequest(request) {
   const donors = await findRankedDonors(request.bloodGroup, {
@@ -70,4 +71,24 @@ async function notifyDonorsForRequest(request) {
   };
 }
 
-module.exports = { notifyDonorsForRequest };
+// In-app-only (no email/SMS, unlike the donor alert above) — blood banks are
+// institutional accounts expected to check their dashboard, not individuals
+// who need to be reached wherever they are. Called for both hospital-raised
+// and blood-bank-raised requests; `excludeUserId` skips the raising bank
+// itself when it's the latter (a bank shouldn't get notified about, or be
+// able to accept, its own request).
+async function notifyBloodBanksForRequest(request, excludeUserId = null) {
+  const banks = await BloodBankProfile.find({ approvalStatus: 'approved' }).populate('userId');
+  const title = `${request.bloodGroup} blood request`;
+  const message = `${request.patient} — ${request.unitsRequired} unit${request.unitsRequired === 1 ? '' : 's'} — ${request.priority} priority. Check your dashboard to accept.`;
+  let notified = 0;
+  for (const bank of banks) {
+    if (!bank.userId) continue;
+    if (excludeUserId && bank.userId._id.toString() === excludeUserId.toString()) continue;
+    notifyUser(bank.userId._id, title, message);
+    notified += 1;
+  }
+  return { notified };
+}
+
+module.exports = { notifyDonorsForRequest, notifyBloodBanksForRequest };

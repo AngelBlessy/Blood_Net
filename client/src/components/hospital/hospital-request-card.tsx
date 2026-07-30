@@ -124,6 +124,18 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
         </p>
       )}
 
+      {request.bankResponses.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {t('bankResponsesLabel')}{' '}
+          {request.bankResponses
+            .map((entry) => {
+              const contact = entry.response === 'Accepted' && entry.bankPhone ? ` (${entry.bankPhone})` : '';
+              return `${entry.bankName}${contact}: ${t(RESPONSE_LABEL_KEYS[entry.response])}`;
+            })
+            .join(' — ')}
+        </p>
+      )}
+
       {showActions && (
         <div className="mt-1 flex flex-wrap gap-2">
           <Button variant="link" size="sm" className="h-auto p-0" onClick={handleNotify} disabled={notifying}>

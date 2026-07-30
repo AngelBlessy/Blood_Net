@@ -150,10 +150,11 @@ async function myAlerts(req, res) {
   const responseMap = new Map(myResponses.map((response) => [response.requestId.toString(), response.response]));
 
   // Still-open requests always show; completed ones only show if this donor
-  // actually responded to them (otherwise the list would fill up with
-  // long-resolved requests the donor was never involved in).
+  // is the one who accepted (and therefore donated). A donor who declined,
+  // or never responded, loses visibility once someone else fulfills it —
+  // otherwise it lingers forever in profiles it's no longer relevant to.
   const relevant = compatible.filter(
-    (request) => request.status !== 'Completed' || responseMap.has(request._id.toString())
+    (request) => request.status !== 'Completed' || responseMap.get(request._id.toString()) === 'Accepted'
   );
 
   res.json({

@@ -77,6 +77,15 @@ export interface DonorResponseEntry {
   respondedAt: string;
 }
 
+export interface BloodBankResponseEntry {
+  bankId: string;
+  bankName: string;
+  bankPhone: string | null;
+  response: DonorResponse;
+  unitsCommitted: number;
+  respondedAt: string;
+}
+
 export interface HospitalRequest {
   id: string;
   patient: string;
@@ -93,6 +102,9 @@ export interface HospitalRequest {
   contactName?: string | null;
   contactPhone?: string | null;
   responses: DonorResponseEntry[];
+  bankResponses: BloodBankResponseEntry[];
+  // Only present on the blood-bank "incoming requests" feed (GET ?forBloodBank=true).
+  myBankResponse?: DonorResponse | null;
 }
 
 export interface DonorAlertRequest {

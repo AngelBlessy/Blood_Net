@@ -4,13 +4,18 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import { StatCard } from '@/components/ui/stat-card';
 import { PageHeader } from '@/components/layout/page-header';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
 import { HospitalRequestCard } from '@/components/hospital/hospital-request-card';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
 import { apiGet, apiPost, apiErrorMessage } from '@/lib/api';
-import type { AdminStats } from '@/types/domain';
+import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
+import { PRIORITY_LABEL_KEYS } from '@/lib/request-labels';
+import type { AdminStats, BloodGroup, RequestPriority } from '@/types/domain';
+
+const REQUEST_PRIORITIES: RequestPriority[] = ['Critical', 'Urgent', 'Routine'];
+const RECENT_LIMIT_OPTIONS = [10, 20, 50, 100];
 
 interface PendingHospital {
   id: string;
@@ -38,6 +43,11 @@ export function AdminPage() {
   const [pendingHospitals, setPendingHospitals] = useState<PendingHospital[]>([]);
   const [pendingBloodBanks, setPendingBloodBanks] = useState<PendingBloodBank[]>([]);
 
+  const [limit, setLimit] = useState(20);
+  const [bloodGroupFilter, setBloodGroupFilter] = useState<BloodGroup | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [priorityFilter, setPriorityFilter] = useState<RequestPriority | 'all'>('all');
+
   async function refresh() {
     const [statsData, hospitalsData, banksData] = await Promise.all([
       apiGet<AdminStats>('/admin/stats'),
@@ -51,8 +61,19 @@ export function AdminPage() {
 
   useEffect(() => {
     refresh().catch((error) => toast.error(apiErrorMessage(error, t('toastAdminLoadError'))));
-    fetchRequests();
-  }, [fetchRequests, t]);
+  }, [t]);
+
+  // All request activity, unrestricted by raiser — this is the admin's
+  // full-visibility view, narrowed only by the filters below (not by who
+  // raised each request, unlike the hospital/blood-bank dashboards).
+  useEffect(() => {
+    fetchRequests({
+      limit,
+      bloodGroup: bloodGroupFilter === 'all' ? undefined : bloodGroupFilter,
+      priority: priorityFilter === 'all' ? undefined : priorityFilter,
+      status: statusFilter === 'all' ? undefined : statusFilter,
+    });
+  }, [fetchRequests, limit, bloodGroupFilter, priorityFilter, statusFilter]);
 
   async function decideHospital(id: string, decision: 'approve' | 'reject') {
     try {
@@ -162,7 +183,6 @@ export function AdminPage() {
                       {t('adminUnitsAcrossBanks', { units: item.units })}
                     </p>
                   </div>
-                  <Badge variant="destructive">{t('adminActionBadge')}</Badge>
                 </Card>
               ))
             )}
@@ -172,11 +192,71 @@ export function AdminPage() {
         <Card className="gap-3 p-6">
           <span className="text-sm font-medium text-primary">{t('adminActivityEyebrow')}</span>
           <h2 className="mb-4 text-lg font-semibold">{t('adminActivityTitle')}</h2>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+          <div className="grid gap-3 sm:grid-cols-4">
+            <Select value={String(limit)} onValueChange={(value) => setLimit(Number(value))}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RECENT_LIMIT_OPTIONS.map((count) => (
+                  <SelectItem key={count} value={String(count)}>
+                    {t('recentCountOption', { count })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={bloodGroupFilter} onValueChange={(value) => setBloodGroupFilter(value as BloodGroup | 'all')}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('allBloodGroupsOption')}</SelectItem>
+                {BLOOD_GROUPS.map((group) => (
+                  <SelectItem key={group} value={group}>
+                    {group}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'all' | 'pending' | 'completed')}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('allStatusesOption')}</SelectItem>
+                <SelectItem value="pending">{t('statusPending')}</SelectItem>
+                <SelectItem value="completed">{t('statusCompleted')}</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={priorityFilter}
+              onValueChange={(value) => setPriorityFilter(value as RequestPriority | 'all')}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('allPrioritiesOption')}</SelectItem>
+                {REQUEST_PRIORITIES.map((priority) => (
+                  <SelectItem key={priority} value={priority}>
+                    {t(PRIORITY_LABEL_KEYS[priority])}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <p className="mt-3 text-xs text-muted-foreground">{t('showingCountLabel', { count: requests.length })}</p>
+
+          <div className="mt-3 grid max-h-[42rem] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
             {requests.length === 0 ? (
               <EmptyState>{t('adminNoRequests')}</EmptyState>
             ) : (
-              requests.slice(0, 6).map((request) => <HospitalRequestCard key={request.id} request={request} />)
+              requests.map((request) => <HospitalRequestCard key={request.id} request={request} />)
             )}
           </div>
         </Card>

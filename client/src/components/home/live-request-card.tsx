@@ -72,16 +72,25 @@ export function LiveRequestCard() {
   const { t } = useTranslation();
   const requests = useHospitalRequestsStore((state) => state.requests);
   const fetchRequests = useHospitalRequestsStore((state) => state.fetchRequests);
+  // Completed requests are done — this is a live "who needs blood right now"
+  // feed, not a history view (donors get their own accepted/completed
+  // requests on Profile > My Alerts; hospitals/blood banks get theirs on
+  // their dashboard's Completed section).
+  const openRequests = requests.filter((request) => request.status !== 'Completed');
 
   useEffect(() => {
     fetchRequests({ limit: 50 });
+    // Requests completing elsewhere don't push a live update to this feed
+    // (the server only notifies the raiser's own room), so poll instead.
+    const interval = setInterval(() => fetchRequests({ limit: 50 }), 30_000);
+    return () => clearInterval(interval);
   }, [fetchRequests]);
 
   return (
     <Card className="gap-2 p-6">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">
-          {requests.length > 0 ? t('liveRequestsLabel') : t('exampleMatchingLabel')}
+          {openRequests.length > 0 ? t('liveRequestsLabel') : t('exampleMatchingLabel')}
         </span>
         <Badge variant="outline" className="gap-1.5">
           <span className="size-1.5 animate-pulse rounded-full bg-primary" />
@@ -89,9 +98,9 @@ export function LiveRequestCard() {
         </Badge>
       </div>
 
-      {requests.length > 0 ? (
+      {openRequests.length > 0 ? (
         <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-          {requests.map((request) => (
+          {openRequests.map((request) => (
             <LiveRequestEntry key={request.id} request={request} />
           ))}
         </div>
