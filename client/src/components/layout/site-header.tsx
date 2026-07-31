@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Menu, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,9 @@ import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { LanguageSelect } from '@/components/layout/language-select';
 import { NotificationsBell } from '@/components/layout/notifications-bell';
 import { useSessionStore } from '@/store/session-store';
+import { useHideOnScroll } from '@/hooks/use-hide-on-scroll';
 import { apiPost } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import i18n from '@/i18n';
 import type { User } from '@/types/domain';
 
@@ -48,12 +50,30 @@ function displayName(user: User): string {
 export function SiteHeader() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const hidden = useHideOnScroll();
   const session = useSessionStore((state) => state.session);
   const setUser = useSessionStore((state) => state.setUser);
 
   function handleNavClick() {
     setMobileOpen(false);
+  }
+
+  // react-router only re-scrolls on a hash change; clicking a section link
+  // while already on that section (e.g. after scrolling away from it) leaves
+  // the URL unchanged, so nothing would otherwise happen. Scroll manually.
+  function handleSectionLinkClick(event: React.MouseEvent, to: string) {
+    setMobileOpen(false);
+    const hashIndex = to.indexOf('#');
+    if (hashIndex === -1) return;
+
+    const targetPath = to.slice(0, hashIndex) || '/';
+    const targetHash = to.slice(hashIndex);
+    if (location.pathname === targetPath && location.hash === targetHash) {
+      event.preventDefault();
+      document.getElementById(targetHash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   async function handleLogout() {
@@ -74,7 +94,12 @@ export function SiteHeader() {
   const initial = session ? displayName(session.user).trim().charAt(0).toUpperCase() || 'U' : 'U';
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+    <header
+      className={cn(
+        'sticky top-0 z-40 border-b bg-background/85 backdrop-blur transition-transform duration-300 ease-in-out supports-[backdrop-filter]:bg-background/70',
+        hidden && !mobileOpen && '-translate-y-full'
+      )}
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex shrink-0 items-center gap-2" onClick={handleNavClick}>
           <img src="/bloodnet-logo.png" alt="" className="size-8 rounded-md" aria-hidden />
@@ -93,7 +118,7 @@ export function SiteHeader() {
               className={link.core ? 'shrink-0' : 'hidden shrink-0 lg:inline-flex'}
               asChild
             >
-              <Link to={link.to} onClick={handleNavClick}>
+              <Link to={link.to} onClick={(event) => handleSectionLinkClick(event, link.to)}>
                 {t(link.label)}
               </Link>
             </Button>
@@ -164,7 +189,7 @@ export function SiteHeader() {
           <div className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => (
               <Button key={link.to} variant="ghost" size="sm" className="justify-start" asChild>
-                <Link to={link.to} onClick={handleNavClick}>
+                <Link to={link.to} onClick={(event) => handleSectionLinkClick(event, link.to)}>
                   {t(link.label)}
                 </Link>
               </Button>
