@@ -1,13 +1,14 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { loginSchema, type LoginValues } from './schemas';
-import { passwordMatches } from '@/lib/crypto';
-import { useUsersStore } from '@/store/users-store';
+import { apiPost, apiErrorMessage } from '@/lib/api';
 import { useSessionStore } from '@/store/session-store';
+import type { User } from '@/types/domain';
 
 interface LoginFormProps {
   onLoggedIn: () => void;
@@ -15,8 +16,8 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
-  const findByEmail = useUsersStore((state) => state.findByEmail);
-  const login = useSessionStore((state) => state.login);
+  const { t } = useTranslation();
+  const setUser = useSessionStore((state) => state.setUser);
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -24,18 +25,16 @@ export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
   });
 
   async function onSubmit(values: LoginValues) {
-    const email = values.email.trim().toLowerCase();
-    const user = findByEmail(email);
-    if (!user || !(await passwordMatches(user, values.password))) {
-      form.setError('password', { message: 'Incorrect email or password.' });
-      return;
+    try {
+      const result = await apiPost<{ ok: boolean; user: User }>('/auth/login', {
+        email: values.email.trim().toLowerCase(),
+        password: values.password,
+      });
+      setUser(result.user);
+      onLoggedIn();
+    } catch (error) {
+      form.setError('password', { message: apiErrorMessage(error, t('errIncorrectLogin')) });
     }
-    if (!user.emailVerified || !user.phoneVerified) {
-      form.setError('password', { message: 'Complete registration OTP verification before logging in.' });
-      return;
-    }
-    login(user);
-    onLoggedIn();
   }
 
   return (
@@ -46,9 +45,16 @@ export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>{t('fieldEmail')}</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="name@example.com" autoComplete="email" {...field} />
+                <Input
+                  type="email"
+                  placeholder={t('emailAddressPlaceholder')}
+                  autoComplete="off"
+                  {...field}
+                  readOnly
+                  onFocus={(e) => e.target.removeAttribute('readonly')}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -60,9 +66,15 @@ export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>{t('fieldPassword')}</FormLabel>
               <FormControl>
-                <PasswordInput placeholder="Enter password" autoComplete="current-password" {...field} />
+                <PasswordInput
+                  placeholder={t('passwordPlaceholder')}
+                  autoComplete="off"
+                  {...field}
+                  readOnly
+                  onFocus={(e) => e.target.removeAttribute('readonly')}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -70,10 +82,10 @@ export function LoginForm({ onLoggedIn, onForgotPassword }: LoginFormProps) {
         />
 
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? 'Signing in…' : 'Login'}
+          {form.formState.isSubmitting ? t('loginSigningIn') : t('loginSubmit')}
         </Button>
         <Button type="button" variant="link" size="sm" className="w-full" onClick={onForgotPassword}>
-          Forgot password? Reset with OTP
+          {t('forgotPasswordLink')}
         </Button>
       </form>
     </Form>

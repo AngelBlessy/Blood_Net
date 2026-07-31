@@ -1,4 +1,5 @@
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const path = require('node:path');
 const fs = require('node:fs');
 const apiRouter = require('./routes');
@@ -10,7 +11,10 @@ function createApp() {
   const app = express();
 
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '20kb' }));
+  // 20kb was enough for the rest of the API, but the bulk /translate endpoint
+  // sends the whole UI dictionary (~15kb+ and growing) in one request.
+  app.use(express.json({ limit: '1mb' }));
+  app.use(cookieParser());
 
   app.use('/api', apiRouter);
   app.use(express.static(CLIENT_DIST_DIR));

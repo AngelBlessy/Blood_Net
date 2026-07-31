@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { Pencil } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,8 +17,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { HospitalRequest } from '@/types/domain';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
-import { useUsersStore } from '@/store/users-store';
-import { useNotifyDonors } from '@/hooks/use-notify-donors';
+import { useSessionStore } from '@/store/session-store';
+import { PRIORITY_LABEL_KEYS, RESPONSE_LABEL_KEYS } from '@/lib/request-labels';
+import { apiErrorMessage } from '@/lib/api';
 
 interface HospitalRequestCardProps {
   request: HospitalRequest;
@@ -25,36 +27,62 @@ interface HospitalRequestCardProps {
 }
 
 export function HospitalRequestCard({ request, showActions = false }: HospitalRequestCardProps) {
+  const { t } = useTranslation();
   const updateRequest = useHospitalRequestsStore((state) => state.updateRequest);
-  const users = useUsersStore((state) => state.users);
-  const { notifyDonorsForRequest } = useNotifyDonors();
+  const notifyDonors = useHospitalRequestsStore((state) => state.notifyDonors);
+  const notifyAllDonors = useHospitalRequestsStore((state) => state.notifyAllDonors);
+  const isHospital = useSessionStore((state) => state.session?.user.role === 'hospital');
   const [editOpen, setEditOpen] = useState(false);
   const [patientDraft, setPatientDraft] = useState(request.patient);
   const [unitsDraft, setUnitsDraft] = useState(String(request.units));
   const [notifying, setNotifying] = useState(false);
-
-  const responseEntries = Object.entries(request.responses || {});
+  const [notifyingAll, setNotifyingAll] = useState(false);
 
   async function handleNotify() {
     setNotifying(true);
-    const result = await notifyDonorsForRequest(request);
-    setNotifying(false);
-    toast[result.ok ? 'success' : 'error'](result.message);
+    try {
+      const result = await notifyDonors(request.id);
+      toast[result.ok ? 'success' : 'error'](result.message);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('errAlertSendFailed')));
+    } finally {
+      setNotifying(false);
+    }
   }
 
-  function handleSaveEdit() {
+  async function handleNotifyAll() {
+    setNotifyingAll(true);
+    try {
+      const result = await notifyAllDonors(request.id);
+      toast[result.ok ? 'success' : 'error'](result.message);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('errAlertSendFailed')));
+    } finally {
+      setNotifyingAll(false);
+    }
+  }
+
+  async function handleSaveEdit() {
     const units = Number(unitsDraft);
-    const updates: Partial<HospitalRequest> = {};
+    const updates: { patient?: string; units?: number } = {};
     if (patientDraft.trim()) updates.patient = patientDraft.trim();
     if (Number.isInteger(units) && units > 0) updates.units = units;
-    updateRequest(request.id, updates);
-    setEditOpen(false);
-    toast.success('Request updated.');
+    try {
+      await updateRequest(request.id, updates);
+      setEditOpen(false);
+      toast.success(t('toastRequestUpdated'));
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('toastRequestUpdateError')));
+    }
   }
 
-  function handleComplete() {
-    updateRequest(request.id, { status: 'Completed' });
-    toast.success('Request marked as completed.');
+  async function handleComplete() {
+    try {
+      await updateRequest(request.id, { status: 'Completed' });
+      toast.success(t('toastRequestCompleted'));
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('toastRequestCompleteError')));
+    }
   }
 
   return (
@@ -63,22 +91,62 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
         <div>
           <h4 className="font-semibold">{request.patient}</h4>
           <p className="text-sm text-muted-foreground">
-            {request.bloodGroup} — {request.units} units — {request.matches} donors notified
+            {t('requestSummaryLine', {
+              bloodGroup: request.bloodGroup,
+              units: request.units,
+              matches: request.matches,
+            })}
           </p>
+          {request.contactName && request.contactPhone && (
+            <p className="text-xs text-muted-foreground">
+              {t('contactRequesterLabel', { name: request.contactName, phone: request.contactPhone })}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
-            {request.status} — {request.createdAt}
+            {request.status === 'Completed' ? t('statusCompleted') : request.status} —{' '}
+            {new Date(request.createdAt).toLocaleString()}
           </p>
+          {request.raisedBy === 'guest' && (
+            <p className="text-xs text-muted-foreground">
+              {t('raisedByGuestLine', {
+                name: [request.guestName, request.guestPhone ? `(${request.guestPhone})` : null]
+                  .filter(Boolean)
+                  .join(' '),
+              })}
+            </p>
+          )}
         </div>
-        <Badge variant={request.status === 'Completed' ? 'secondary' : 'outline'}>{request.priority}</Badge>
+        <div className="flex flex-col items-end gap-1">
+          <Badge variant={request.status === 'Completed' ? 'secondary' : 'outline'}>
+            {t(PRIORITY_LABEL_KEYS[request.priority])}
+          </Badge>
+          {request.raisedBy === 'guest' && (
+            <Badge variant="destructive" className="text-[10px]">
+              {t('guestRequestBadge')}
+            </Badge>
+          )}
+        </div>
       </div>
 
-      {responseEntries.length > 0 && (
+      {request.responses.length > 0 && (
         <p className="text-xs text-muted-foreground">
-          Responses:{' '}
-          {responseEntries
-            .map(([key, response]) => {
-              const user = users.find((entry) => entry.key === key);
-              return `${user?.name || user?.email || key}: ${response}`;
+          {t('responsesLabel')}{' '}
+          {request.responses
+            .map((entry) => {
+              const contact = entry.response === 'Accepted' && entry.donorPhone ? ` (${entry.donorPhone})` : '';
+              return `${entry.donorName}${contact}: ${t(RESPONSE_LABEL_KEYS[entry.response])}`;
+            })
+            .join(' — ')}
+        </p>
+      )}
+
+      {request.bankResponses.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {t('bankResponsesLabel')}{' '}
+          {request.bankResponses
+            .map((entry) => {
+              const contact = entry.response === 'Accepted' && entry.bankPhone ? ` (${entry.bankPhone})` : '';
+              return `${entry.bankName}${contact}: ${t(RESPONSE_LABEL_KEYS[entry.response])}`;
             })
             .join(' — ')}
         </p>
@@ -87,14 +155,26 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
       {showActions && (
         <div className="mt-1 flex flex-wrap gap-2">
           <Button variant="link" size="sm" className="h-auto p-0" onClick={handleNotify} disabled={notifying}>
-            {notifying ? 'Notifying…' : 'Request donors'}
+            {notifying ? t('notifyingEllipsis') : t('requestDonorsLink')}
           </Button>
+          {isHospital && request.status !== 'Completed' && (
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-destructive"
+              onClick={handleNotifyAll}
+              disabled={notifyingAll}
+              title={t('notifyAllDonorsHint')}
+            >
+              {notifyingAll ? t('notifyingEllipsis') : t('notifyAllDonorsLink')}
+            </Button>
+          )}
           <Button variant="link" size="sm" className="h-auto gap-1 p-0" onClick={() => setEditOpen(true)}>
-            <Pencil className="size-3" /> Edit
+            <Pencil className="size-3" /> {t('editLink')}
           </Button>
           {request.status !== 'Completed' && (
             <Button variant="link" size="sm" className="h-auto p-0" onClick={handleComplete}>
-              Mark completed
+              {t('markCompleted')}
             </Button>
           )}
         </div>
@@ -103,16 +183,16 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Edit request</DialogTitle>
-            <DialogDescription>Update the patient reference or units needed.</DialogDescription>
+            <DialogTitle>{t('editRequestTitle')}</DialogTitle>
+            <DialogDescription>{t('editRequestDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="edit-patient">Patient / case reference</Label>
+              <Label htmlFor="edit-patient">{t('fieldPatientCase')}</Label>
               <Input id="edit-patient" value={patientDraft} onChange={(e) => setPatientDraft(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-units">Units needed</Label>
+              <Label htmlFor="edit-units">{t('fieldUnits')}</Label>
               <Input
                 id="edit-units"
                 type="number"
@@ -123,7 +203,7 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleSaveEdit}>Save changes</Button>
+            <Button onClick={handleSaveEdit}>{t('saveChanges')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

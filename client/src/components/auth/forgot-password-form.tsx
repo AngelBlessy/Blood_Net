@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -16,6 +17,7 @@ interface ForgotPasswordFormProps {
 }
 
 export function ForgotPasswordForm({ requestOtp, resetPassword, onReset, onBack }: ForgotPasswordFormProps) {
+  const { t } = useTranslation();
   const [otpStatus, setOtpStatus] = useState<string>();
   const [sendingOtp, setSendingOtp] = useState(false);
 
@@ -51,9 +53,9 @@ export function ForgotPasswordForm({ requestOtp, resetPassword, onReset, onBack 
           name="identifier"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Registered email or mobile number</FormLabel>
+              <FormLabel>{t('fieldIdentifier')}</FormLabel>
               <FormControl>
-                <Input placeholder="name@example.com or 10-digit phone" {...field} />
+                <Input placeholder={t('identifierPlaceholder')} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -66,16 +68,16 @@ export function ForgotPasswordForm({ requestOtp, resetPassword, onReset, onBack 
             name="otp"
             render={({ field }) => (
               <FormItem className="flex-1">
-                <FormLabel>OTP</FormLabel>
+                <FormLabel>{t('fieldOtp')}</FormLabel>
                 <FormControl>
-                  <Input inputMode="numeric" maxLength={6} placeholder="6-digit OTP" {...field} />
+                  <Input inputMode="numeric" maxLength={6} placeholder={t('otpPlaceholder')} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
           <Button type="button" variant="outline" onClick={handleSendOtp} disabled={sendingOtp}>
-            {sendingOtp ? 'Sending…' : 'Send OTP'}
+            {sendingOtp ? t('sendingEllipsis') : t('registerSubmit')}
           </Button>
         </div>
         {otpStatus && <p className="text-sm text-muted-foreground">{otpStatus}</p>}
@@ -85,9 +87,9 @@ export function ForgotPasswordForm({ requestOtp, resetPassword, onReset, onBack 
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>New password</FormLabel>
+              <FormLabel>{t('fieldNewPassword')}</FormLabel>
               <FormControl>
-                <PasswordInput placeholder="New password" autoComplete="new-password" {...field} />
+                <PasswordInput placeholder={t('fieldNewPassword')} autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -99,9 +101,13 @@ export function ForgotPasswordForm({ requestOtp, resetPassword, onReset, onBack 
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirm new password</FormLabel>
+              <FormLabel>{t('fieldConfirmNewPassword')}</FormLabel>
               <FormControl>
-                <PasswordInput placeholder="Re-enter new password" autoComplete="new-password" {...field} />
+                <PasswordInput
+                  placeholder={t('confirmNewPasswordPlaceholder')}
+                  autoComplete="new-password"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -109,10 +115,10 @@ export function ForgotPasswordForm({ requestOtp, resetPassword, onReset, onBack 
         />
 
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? 'Resetting…' : 'Reset password'}
+          {form.formState.isSubmitting ? t('resettingEllipsis') : t('resetSubmit')}
         </Button>
         <Button type="button" variant="link" size="sm" className="w-full" onClick={onBack}>
-          Back to login
+          {t('backToLogin')}
         </Button>
       </form>
     </Form>

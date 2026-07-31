@@ -1,74 +1,46 @@
-import type { BloodGroup, RequestPriority } from '@/types/domain';
+export class ApiError extends Error {
+  status: number;
 
-export interface DeliveryResult {
-  delivered: boolean;
-  error?: string;
-}
-
-interface SendOtpOptions {
-  channel: 'email' | 'sms';
-  target: string;
-  otp: string;
-  subject?: string;
-  body?: string;
-}
-
-export async function sendOtp(options: SendOtpOptions): Promise<DeliveryResult> {
-  try {
-    const response = await fetch('/api/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(options),
-    });
-    if (!response.ok) {
-      const details = await response.json().catch(() => ({}) as { error?: string });
-      throw new Error(details.error || 'OTP provider unavailable');
-    }
-    return { delivered: true };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`OTP delivery failed (${options.channel}):`, message);
-    return { delivered: false, error: message };
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
   }
 }
 
-export function otpFailureMessage(...channelLabels: Array<string | false | undefined>): string {
-  const failed = channelLabels.filter((label): label is string => Boolean(label));
-  if (!failed.length) return 'Something went wrong sending the OTP. Use Resend OTP to try again.';
-  return `We couldn't send the OTP by ${failed.join(' and ')} right now. Use Resend OTP to try again.`;
-}
-
-interface EmergencyAlertRecipient {
-  name: string;
-  email: string;
-  phone: string;
-}
-
-interface EmergencyAlertRequest {
-  patient: string;
-  bloodGroup: BloodGroup;
-  units: number;
-  priority: RequestPriority;
-}
-
-interface EmergencyAlertResult {
-  ok: boolean;
-  emailSent: number;
-  smsSent: number;
-}
-
-export async function sendEmergencyAlerts(
-  request: EmergencyAlertRequest,
-  recipients: EmergencyAlertRecipient[]
-): Promise<EmergencyAlertResult> {
-  const response = await fetch('/api/send-emergency-alerts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ request, recipients }),
-  });
-  const result = await response.json().catch(() => ({}) as { error?: string });
+async function handle<T>(response: Response): Promise<T> {
+  const data = await response.json().catch(() => ({}) as Record<string, unknown>);
   if (!response.ok) {
-    throw new Error(result.error || 'Alert delivery failed');
+    const message = typeof data.error === 'string' ? data.error : 'Something went wrong. Please try again.';
+    throw new ApiError(message, response.status);
   }
-  return result as EmergencyAlertResult;
+  return data as T;
+}
+
+function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return fetch(`/api${path}`, {
+    credentials: 'include',
+    headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
+    ...init,
+  }).then((response) => handle<T>(response));
+}
+
+export function apiGet<T>(path: string): Promise<T> {
+  return request<T>(path);
+}
+
+export function apiPost<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) });
+}
+
+export function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, { method: 'PATCH', body: body === undefined ? undefined : JSON.stringify(body) });
+}
+
+export function apiPut<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>(path, { method: 'PUT', body: body === undefined ? undefined : JSON.stringify(body) });
+}
+
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback;
 }

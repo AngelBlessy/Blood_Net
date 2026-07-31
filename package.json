@@ -10,13 +10,21 @@
     "dev:client": "npm run dev --prefix client",
     "build": "npm run build --prefix client",
     "start": "node server/index.js",
+    "seed": "node server/seed.js",
     "typecheck": "npm run typecheck --prefix client",
     "lint": "npm run lint --prefix client"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "node-cron": "^3.0.3",
     "nodemailer": "^9.0.3",
+    "pdfkit": "^0.19.1",
+    "socket.io": "^4.8.3",
     "twilio": "^5.4.0"
   },
   "devDependencies": {

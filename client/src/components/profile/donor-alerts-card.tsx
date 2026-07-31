@@ -1,56 +1,102 @@
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useSessionStore } from '@/store/session-store';
-import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
-import { eligibleDonorsFor } from '@/lib/donor-matching';
-import type { DonorResponse } from '@/types/domain';
+import { PRIORITY_LABEL_KEYS, RESPONSE_LABEL_KEYS } from '@/lib/request-labels';
+import { apiGet, apiPost, apiErrorMessage } from '@/lib/api';
+import { computeEligibility } from '@/lib/donor-eligibility';
+import type { DonorAlertRequest, DonorResponse } from '@/types/domain';
 
 export function DonorAlertsCard() {
+  const { t } = useTranslation();
   const session = useSessionStore((state) => state.session);
-  const requests = useHospitalRequestsStore((state) => state.requests);
-  const recordResponse = useHospitalRequestsStore((state) => state.recordResponse);
+  const [requests, setRequests] = useState<DonorAlertRequest[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!session) return null;
+  async function refresh() {
+    try {
+      const data = await apiGet<{ requests: DonorAlertRequest[] }>('/donors/me/alerts');
+      setRequests(data.requests);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('toastDonorAlertsLoadError')));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (session?.user.role === 'donor') refresh();
+  }, [session?.user.role]);
+
+  if (!session || session.user.role !== 'donor') return null;
   const donor = session.user;
 
-  const openMatches = requests.filter(
-    (request) =>
-      request.status !== 'Completed' && eligibleDonorsFor([donor], request.bloodGroup).length > 0
-  );
+  async function handleRespond(requestId: string, response: DonorResponse) {
+    // Instant local check (no round trip) — the server re-checks this too,
+    // since it's the actual source of truth (see hospital-requests.controller.js).
+    if (response === 'Accepted') {
+      const eligibility = computeEligibility(donor.lastDonationDate);
+      if (!eligibility.eligible) {
+        toast.error(t('notEligibleDaysMessage', { days: eligibility.daysRemaining }));
+        return;
+      }
+    }
 
-  function handleRespond(requestId: string, response: DonorResponse) {
-    recordResponse(requestId, donor!.key, response);
-    toast.success(`Emergency request ${response.toLowerCase()}.`);
+    try {
+      await apiPost(`/hospital-requests/${requestId}/respond`, { response });
+      setRequests((prev) => prev.map((request) => (request.id === requestId ? { ...request, myResponse: response } : request)));
+      toast.success(t(response === 'Accepted' ? 'toastRequestAccepted' : 'toastRequestDeclined'));
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('toastDonorResponseError')));
+    }
   }
 
   return (
     <Card className="gap-3 p-6 sm:col-span-2">
-      <span className="text-sm font-medium text-primary">Emergency alerts</span>
-      <h3 className="font-semibold">Requests you can respond to</h3>
+      <span className="text-sm font-medium text-primary">{t('donorAlertsEyebrow')}</span>
+      <h3 className="font-semibold">{t('donorAlertsTitle')}</h3>
 
-      {openMatches.length === 0 ? (
-        <EmptyState>No compatible emergency requests are open right now.</EmptyState>
+      {loading ? (
+        <p className="text-sm text-muted-foreground">{t('loadingEllipsis')}</p>
+      ) : requests.length === 0 ? (
+        <EmptyState>{t('noOpenMatches')}</EmptyState>
       ) : (
         <div className="space-y-3">
-          {openMatches.slice(0, 6).map((request) => {
-            const response = request.responses?.[donor.key];
+          {requests.slice(0, 6).map((request) => {
+            const completed = request.status === 'Completed';
             return (
               <Card key={request.id} className="gap-2 p-4">
-                <h4 className="font-semibold">{request.patient}</h4>
-                <p className="text-sm text-muted-foreground">
-                  {request.bloodGroup} — {request.units} unit{request.units === 1 ? '' : 's'} — {request.priority}
-                </p>
-                {response ? (
-                  <p className="text-sm font-medium">Your response: {response}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="font-semibold">{request.patient}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {request.bloodGroup} — {t('unitsCount', { count: request.units })} —{' '}
+                      {t(PRIORITY_LABEL_KEYS[request.priority])}
+                      {request.distanceKm !== null && ` — ${t('distanceAwayLabel', { km: request.distanceKm })}`}
+                    </p>
+                  </div>
+                  {completed && <Badge variant="secondary">{t('statusCompleted')}</Badge>}
+                </div>
+
+                {completed ? (
+                  <p className="text-sm font-medium">
+                    {request.myResponse === 'Accepted' ? t('donationThanksMessage') : t('requestFulfilledMessage')}
+                  </p>
+                ) : request.myResponse ? (
+                  <p className="text-sm font-medium">
+                    {t('yourResponseLabel', { response: t(RESPONSE_LABEL_KEYS[request.myResponse]) })}
+                  </p>
                 ) : (
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleRespond(request.id, 'Accepted')}>
-                      Accept
+                    <Button size="sm" onClick={() => handleRespond(request.id, 'Accepted')} disabled={donor.traveling}>
+                      {t('acceptButton')}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => handleRespond(request.id, 'Declined')}>
-                      Reject
+                      {t('rejectButton')}
                     </Button>
                   </div>
                 )}

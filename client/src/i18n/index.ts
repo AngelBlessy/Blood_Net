@@ -3,40 +3,24 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 import en from './locales/en.json';
-import hi from './locales/hi.json';
-import ta from './locales/ta.json';
-import te from './locales/te.json';
-import kn from './locales/kn.json';
-import ml from './locales/ml.json';
-import or from './locales/or.json';
-import bn from './locales/bn.json';
-import mr from './locales/mr.json';
-import gu from './locales/gu.json';
-import pa from './locales/pa.json';
-import ur from './locales/ur.json';
+import { dynamicBackend } from './dynamic-backend';
 
 export const defaultNS = 'translation';
 
-const resources = {
-  en: { translation: en },
-  hi: { translation: hi },
-  ta: { translation: ta },
-  te: { translation: te },
-  kn: { translation: kn },
-  ml: { translation: ml },
-  or: { translation: or },
-  bn: { translation: bn },
-  mr: { translation: mr },
-  gu: { translation: gu },
-  pa: { translation: pa },
-  ur: { translation: ur },
-} as const;
-
+// English is the single canonical source of truth for every UI string. Every
+// other language is generated dynamically via the Google Cloud Translation
+// API (see dynamic-backend.ts + server/services/translation.service.js)
+// instead of maintaining a hand-written JSON dictionary per language.
 void i18n
+  .use(dynamicBackend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources,
+    // Bundling English directly means it never needs a network round trip —
+    // it's also the fallback shown for other languages while their
+    // translation is being fetched (or if translation ever fails).
+    resources: { en: { translation: en } },
+    partialBundledLanguages: true,
     fallbackLng: 'en',
     defaultNS,
     interpolation: { escapeValue: false },
@@ -44,6 +28,9 @@ void i18n
       order: ['localStorage', 'navigator'],
       caches: ['localStorage'],
       lookupLocalStorage: 'bloodnet.language',
+    },
+    react: {
+      useSuspense: false,
     },
   });
 

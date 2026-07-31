@@ -1,14 +1,17 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { registerSchema, type RegisterInput, type RegisterValues } from './schemas';
+import { registerSchema, ROLE_OPTIONS, type RegisterInput, type RegisterValues } from './schemas';
 import type { useRegistration } from './use-registration';
 import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
+import { useGeolocation } from '@/hooks/use-geolocation';
+import { MapPin } from 'lucide-react';
 
 interface RegisterFormProps {
   submitRegistration: ReturnType<typeof useRegistration>['submitRegistration'];
@@ -18,22 +21,42 @@ interface RegisterFormProps {
 const today = new Date().toISOString().slice(0, 10);
 
 export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProps) {
+  const { t } = useTranslation();
+  const { requestLocation, loading: locating, error: locationError } = useGeolocation();
   const form = useForm<RegisterInput, unknown, RegisterValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      name: '',
-      age: '' as unknown as number,
-      phone: '',
+      role: 'donor',
       email: '',
+      phone: '',
       password: '',
       confirmPassword: '',
+      name: '',
+      age: '' as unknown as number,
       donatedEver: undefined,
       lastDonationDate: '',
       bloodGroup: undefined,
+      hospitalName: '',
+      licenseNumber: '',
+      bankName: '',
+      contactNumber: '',
+      address: '',
+      city: '',
+      state: '',
     },
   });
 
+  const role = form.watch('role');
   const donatedEver = form.watch('donatedEver');
+  const hasCoordinates = form.watch('lat') !== undefined && form.watch('lng') !== undefined;
+
+  async function handleUseLocation() {
+    const coords = await requestLocation();
+    if (coords) {
+      form.setValue('lat', coords.lat);
+      form.setValue('lng', coords.lng);
+    }
+  }
 
   async function onSubmit(values: RegisterValues) {
     const result = await submitRegistration(values);
@@ -49,51 +72,210 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="name"
+          name="role"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input placeholder="Full name" autoComplete="name" {...field} />
-              </FormControl>
+              <FormLabel>{t('registeringAsLabel')}</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {ROLE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        {role === 'donor' && (
+          <>
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldName')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('namePlaceholder')} autoComplete="name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('fieldCity')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('cityPlaceholder')} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="state"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('fieldState')}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t('statePlaceholder')} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </>
+        )}
+
+        {role === 'hospital' && (
+          <>
+            <FormField
+              control={form.control}
+              name="hospitalName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldHospitalName')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('hospitalNamePlaceholder')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="licenseNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldLicenseNumber')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('licenseNumberPlaceholder')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        )}
+
+        {role === 'bloodbank' && (
           <FormField
             control={form.control}
-            name="age"
+            name="bankName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Age</FormLabel>
+                <FormLabel>{t('fieldBankName')}</FormLabel>
                 <FormControl>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={120}
-                    placeholder="Age"
-                    {...field}
-                    value={(field.value as number | string | undefined) ?? ''}
-                  />
+                  <Input placeholder={t('bankNamePlaceholder')} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+        )}
+
+        {(role === 'hospital' || role === 'bloodbank') && (
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldAddress')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('addressPlaceholder')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldCity')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('cityPlaceholder')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="state"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldState')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('statePlaceholder')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={handleUseLocation} disabled={locating}>
+            <MapPin className="size-3.5" />
+            {locating ? t('locatingEllipsis') : t('useMyLocationButton')}
+          </Button>
+          {hasCoordinates && <span className="text-xs text-muted-foreground">{t('locationCapturedText')}</span>}
+          {locationError && <span className="text-xs text-destructive">{locationError}</span>}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          {role === 'donor' && (
+            <FormField
+              control={form.control}
+              name="age"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldAge')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={120}
+                      placeholder={t('fieldAge')}
+                      {...field}
+                      value={(field.value as number | string | undefined) ?? ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
           <FormField
             control={form.control}
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contact no</FormLabel>
+                <FormLabel>{t('fieldContactNo')}</FormLabel>
                 <FormControl>
                   <Input
                     type="tel"
                     inputMode="numeric"
                     maxLength={10}
-                    placeholder="10-digit phone number"
+                    placeholder={t('phonePlaceholder')}
                     autoComplete="tel"
                     {...field}
                   />
@@ -109,9 +291,9 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel>{t('fieldEmail')}</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="name@example.com" autoComplete="email" {...field} />
+                <Input type="email" placeholder={t('emailAddressPlaceholder')} autoComplete="email" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -123,9 +305,9 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>{t('fieldPassword')}</FormLabel>
               <FormControl>
-                <PasswordInput placeholder="Create password" autoComplete="new-password" {...field} />
+                <PasswordInput placeholder={t('createPasswordPlaceholder')} autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -137,45 +319,90 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirm password</FormLabel>
+              <FormLabel>{t('fieldConfirmPassword')}</FormLabel>
               <FormControl>
-                <PasswordInput placeholder="Re-enter password" autoComplete="new-password" {...field} />
+                <PasswordInput placeholder={t('confirmPasswordPlaceholder')} autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="donatedEver"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Donated anytime in life</FormLabel>
-              <FormControl>
-                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-6">
-                  <label className="flex items-center gap-2 text-sm">
-                    <RadioGroupItem value="yes" /> Yes
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <RadioGroupItem value="no" /> No
-                  </label>
-                </RadioGroup>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {role === 'donor' && (
+          <>
+            <FormField
+              control={form.control}
+              name="donatedEver"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldDonatedEver')}</FormLabel>
+                  <FormControl>
+                    <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-6">
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="yes" /> {t('yesLabel')}
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <RadioGroupItem value="no" /> {t('noLabel')}
+                      </label>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        {donatedEver === 'yes' && (
+            {donatedEver === 'yes' && (
+              <FormField
+                control={form.control}
+                name="lastDonationDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('fieldLastDonationDate')}</FormLabel>
+                    <FormControl>
+                      <Input type="date" max={today} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <FormField
+              control={form.control}
+              name="bloodGroup"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldBloodGroup')}</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={t('selectBloodGroupPlaceholder')} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {BLOOD_GROUPS.map((group) => (
+                        <SelectItem key={group} value={group}>
+                          {group}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
+        )}
+
+        {role === 'bloodbank' && (
           <FormField
             control={form.control}
-            name="lastDonationDate"
+            name="contactNumber"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Last donation date</FormLabel>
+                <FormLabel>{t('fieldBankContactNumber')}</FormLabel>
                 <FormControl>
-                  <Input type="date" max={today} {...field} />
+                  <Input placeholder={t('bankContactNumberPlaceholder')} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -183,33 +410,12 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           />
         )}
 
-        <FormField
-          control={form.control}
-          name="bloodGroup"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Blood group</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select blood group" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {BLOOD_GROUPS.map((group) => (
-                    <SelectItem key={group} value={group}>
-                      {group}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {(role === 'hospital' || role === 'bloodbank') && (
+          <p className="text-xs text-muted-foreground">{t('approvalNoticeText')}</p>
+        )}
 
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? 'Sending OTP…' : 'Send OTP'}
+          {form.formState.isSubmitting ? t('sendingOtpEllipsis') : t('registerSubmit')}
         </Button>
       </form>
     </Form>

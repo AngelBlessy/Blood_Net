@@ -13,40 +13,65 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { LanguageSelect } from '@/components/layout/language-select';
+import { NotificationsBell } from '@/components/layout/notifications-bell';
 import { useSessionStore } from '@/store/session-store';
-import { useUiStore } from '@/store/ui-store';
+import { apiPost } from '@/lib/api';
+import i18n from '@/i18n';
+import type { User } from '@/types/domain';
 
+// `core` links stay visible as soon as the desktop nav appears (md); the rest
+// only show from `lg` up — between md and lg there isn't room for all of
+// them plus the right-side actions (language/bell/theme/auth buttons), and
+// they'd otherwise get silently clipped by the nav's overflow-x-auto with no
+// visible scrollbar to hint more links exist.
 const NAV_LINKS = [
-  { to: '/', label: 'navHome' },
-  { to: '/#roles', label: 'navRoles' },
-  { to: '/#features', label: 'navFeatures' },
-  { to: '/#faq', label: 'navFaq' },
+  { to: '/', label: 'navHome', core: true },
+  { to: '/search', label: 'navSearch', core: true },
+  { to: '/#compatibility', label: 'navCompatibility', core: false },
+  { to: '/#features', label: 'navFeatures', core: false },
+  { to: '/#faq', label: 'navFaq', core: false },
 ] as const;
 
 const WORKSPACE_LINKS = [
-  { to: '/hospital', label: 'Hospital' },
-  { to: '/blood-bank', label: 'Blood Bank' },
-  { to: '/admin', label: 'Admin' },
+  { to: '/hospital', label: 'workspaceHospital' },
+  { to: '/blood-bank', label: 'workspaceBloodBank' },
+  { to: '/admin', label: 'workspaceAdmin' },
 ] as const;
+
+function displayName(user: User): string {
+  if (user.role === 'donor') return user.name;
+  if (user.role === 'hospital') return user.hospitalName;
+  if (user.role === 'bloodbank') return user.bankName;
+  return i18n.t('adminDisplayName');
+}
 
 export function SiteHeader() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const session = useSessionStore((state) => state.session);
-  const logout = useSessionStore((state) => state.logout);
-  const openAuthDialog = useUiStore((state) => state.openAuthDialog);
+  const setUser = useSessionStore((state) => state.setUser);
 
   function handleNavClick() {
     setMobileOpen(false);
   }
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await apiPost('/auth/logout').catch(() => {});
+    setUser(null);
     navigate('/');
   }
 
-  const initial = session?.user.name?.trim().charAt(0).toUpperCase() || 'D';
+  const workspaceLinks = session
+    ? WORKSPACE_LINKS.filter(
+        (link) =>
+          (link.to === '/hospital' && session.user.role === 'hospital') ||
+          (link.to === '/blood-bank' && session.user.role === 'bloodbank') ||
+          (link.to === '/admin' && session.user.role === 'admin')
+      )
+    : WORKSPACE_LINKS;
+
+  const initial = session ? displayName(session.user).trim().charAt(0).toUpperCase() || 'U' : 'U';
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
@@ -59,42 +84,51 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden min-w-0 items-center gap-1 overflow-x-auto md:flex">
           {NAV_LINKS.map((link) => (
-            <Button key={link.to} variant="ghost" size="sm" asChild>
+            <Button
+              key={link.to}
+              variant="ghost"
+              size="sm"
+              className={link.core ? 'shrink-0' : 'hidden shrink-0 lg:inline-flex'}
+              asChild
+            >
               <Link to={link.to} onClick={handleNavClick}>
                 {t(link.label)}
               </Link>
             </Button>
           ))}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-1">
-                Workspaces
-                <ChevronDown className="size-3.5 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {WORKSPACE_LINKS.map((link) => (
-                <DropdownMenuItem key={link.to} asChild>
-                  <Link to={link.to}>{link.label}</Link>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {workspaceLinks.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="shrink-0 gap-1">
+                  {t('workspacesLabel')}
+                  <ChevronDown className="size-3.5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {workspaceLinks.map((link) => (
+                  <DropdownMenuItem key={link.to} asChild>
+                    <Link to={link.to}>{t(link.label)}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </nav>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <div className="hidden sm:block">
             <LanguageSelect />
           </div>
+          <NotificationsBell />
           <ThemeToggle />
 
           {session ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
+                <Button variant="ghost" size="icon" className="rounded-full" aria-label={t('accountMenuAria')}>
                   <Avatar className="size-8">
                     <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                       {initial}
@@ -104,29 +138,20 @@ export function SiteHeader() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem asChild>
-                  <Link to="/profile">Profile</Link>
+                  <Link to="/profile">{t('navProfile')}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={handleLogout}>Log out</DropdownMenuItem>
+                <DropdownMenuItem onSelect={handleLogout}>{t('logoutText')}</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
-            <div className="hidden items-center gap-1.5 sm:flex">
-              <Button variant="ghost" size="sm" onClick={() => openAuthDialog('login')}>
-                {t('ctaLogin')}
-              </Button>
-              <Button size="sm" onClick={() => openAuthDialog('register')}>
-                {t('ctaRegister')}
-              </Button>
-            </div>
-          )}
+          ) : null}
 
           <Button
             variant="ghost"
             size="icon"
             className="md:hidden"
             onClick={() => setMobileOpen((open) => !open)}
-            aria-label="Toggle navigation"
+            aria-label={t('toggleNavAria')}
             aria-expanded={mobileOpen}
           >
             {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -145,27 +170,19 @@ export function SiteHeader() {
               </Button>
             ))}
 
-            <p className="mt-2 px-2 text-xs font-medium text-muted-foreground">Workspaces</p>
-            {WORKSPACE_LINKS.map((link) => (
+            {workspaceLinks.length > 0 && (
+              <p className="mt-2 px-2 text-xs font-medium text-muted-foreground">{t('workspacesLabel')}</p>
+            )}
+            {workspaceLinks.map((link) => (
               <Button key={link.to} variant="ghost" size="sm" className="justify-start" asChild>
                 <Link to={link.to} onClick={handleNavClick}>
-                  {link.label}
+                  {t(link.label)}
                 </Link>
               </Button>
             ))}
 
-            <div className="mt-2 flex items-center justify-between gap-2 border-t pt-3">
+            <div className="mt-2 flex items-center gap-2 border-t pt-3">
               <LanguageSelect />
-              {!session && (
-                <div className="flex gap-1.5">
-                  <Button variant="ghost" size="sm" onClick={() => openAuthDialog('login')}>
-                    {t('ctaLogin')}
-                  </Button>
-                  <Button size="sm" onClick={() => openAuthDialog('register')}>
-                    {t('ctaRegister')}
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         </nav>

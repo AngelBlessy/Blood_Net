@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,8 +9,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { inventorySchema, type InventoryInput, type InventoryValues } from './schemas';
 import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
 import { useInventoryStore } from '@/store/inventory-store';
+import { apiErrorMessage } from '@/lib/api';
 
 export function InventoryForm() {
+  const { t } = useTranslation();
   const updateItem = useInventoryStore((state) => state.updateItem);
 
   const form = useForm<InventoryInput, unknown, InventoryValues>({
@@ -17,10 +20,14 @@ export function InventoryForm() {
     defaultValues: { group: undefined, units: 0, expiry: '', location: '' },
   });
 
-  function onSubmit(values: InventoryValues) {
-    updateItem(values.group, { units: values.units, expiry: values.expiry, location: values.location });
-    toast.success('Blood bank inventory updated.');
-    form.reset({ group: undefined, units: 0, expiry: '', location: '' });
+  async function onSubmit(values: InventoryValues) {
+    try {
+      await updateItem(values.group, { units: values.units, expiry: values.expiry, location: values.location });
+      toast.success(t('toastInventoryUpdated'));
+      form.reset({ group: undefined, units: 0, expiry: '', location: '' });
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('toastInventoryUpdateError')));
+    }
   }
 
   return (
@@ -31,11 +38,11 @@ export function InventoryForm() {
           name="group"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Blood group</FormLabel>
+              <FormLabel>{t('fieldBloodGroup')}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select blood group" />
+                    <SelectValue placeholder={t('selectBloodGroupPlaceholder')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -56,7 +63,7 @@ export function InventoryForm() {
           name="units"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Available units</FormLabel>
+              <FormLabel>{t('fieldAvailableUnits')}</FormLabel>
               <FormControl>
                 <Input type="number" min={0} {...field} value={(field.value as number | string | undefined) ?? ''} />
               </FormControl>
@@ -65,36 +72,38 @@ export function InventoryForm() {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="expiry"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nearest expiry date</FormLabel>
-              <FormControl>
-                <Input type="date" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="expiry"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('fieldExpiryDate')}</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        <FormField
-          control={form.control}
-          name="location"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Storage location</FormLabel>
-              <FormControl>
-                <Input placeholder="e.g. Cold room A" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="location"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('fieldStorageLocation')}</FormLabel>
+                <FormControl>
+                  <Input placeholder={t('storageLocationPlaceholder')} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-          Update inventory
+          {t('updateInventoryButton')}
         </Button>
       </form>
     </Form>
