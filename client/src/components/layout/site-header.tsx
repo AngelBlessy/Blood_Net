@@ -15,9 +15,7 @@ import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { LanguageSelect } from '@/components/layout/language-select';
 import { NotificationsBell } from '@/components/layout/notifications-bell';
 import { useSessionStore } from '@/store/session-store';
-import { useHideOnScroll } from '@/hooks/use-hide-on-scroll';
 import { apiPost } from '@/lib/api';
-import { cn } from '@/lib/utils';
 import i18n from '@/i18n';
 import type { User } from '@/types/domain';
 
@@ -52,7 +50,6 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const hidden = useHideOnScroll();
   const session = useSessionStore((state) => state.session);
   const setUser = useSessionStore((state) => state.setUser);
 
@@ -94,12 +91,7 @@ export function SiteHeader() {
   const initial = session ? displayName(session.user).trim().charAt(0).toUpperCase() || 'U' : 'U';
 
   return (
-    <header
-      className={cn(
-        'sticky top-0 z-40 border-b bg-background/85 backdrop-blur transition-transform duration-300 ease-in-out supports-[backdrop-filter]:bg-background/70',
-        hidden && !mobileOpen && '-translate-y-full'
-      )}
-    >
+    <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex shrink-0 items-center gap-2" onClick={handleNavClick}>
           <img src="/bloodnet-logo.png" alt="" className="size-8 rounded-md" aria-hidden />
