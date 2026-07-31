@@ -1,3 +1,9 @@
+// Empty by default, which keeps requests same-origin — the local dev proxy
+// (vite.config.ts) and the old same-server deployment both rely on that. Set
+// VITE_API_URL (e.g. to the Fly.io app URL) when the client is deployed
+// separately from the API, such as on Vercel.
+export const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
+
 export class ApiError extends Error {
   status: number;
 
@@ -18,7 +24,7 @@ async function handle<T>(response: Response): Promise<T> {
 }
 
 function request<T>(path: string, init?: RequestInit): Promise<T> {
-  return fetch(`/api${path}`, {
+  return fetch(`${API_BASE_URL}/api${path}`, {
     credentials: 'include',
     headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
     ...init,

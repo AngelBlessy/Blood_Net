@@ -1,0 +1,34 @@
+# Server-only image for Fly.io. The client (React/Vite app in client/) is
+# deployed separately on Vercel and is deliberately NOT built or copied here.
+#
+# Dependencies live in the repo-root package.json (server/ has no package.json
+# of its own), so this Dockerfile must be built with the repo root as its
+# build context, e.g.:
+#   fly deploy   (run from the repo root, using fly.toml's default context)
+
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+# --ignore-scripts skips the root "postinstall" script, which otherwise runs
+# `npm install --prefix client` — unwanted and unavailable in this image
+# since client/ isn't copied in.
+RUN npm ci --omit=dev --ignore-scripts
+
+FROM node:20-alpine AS runner
+ENV NODE_ENV=production
+WORKDIR /app
+
+RUN addgroup -S nodejs && adduser -S nodejs -G nodejs
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json ./
+COPY server ./server
+
+USER nodejs
+
+# Fly.io sets PORT=8080 via fly.toml's [env] block, overriding this default —
+# it's only used for `docker run` outside of Fly.
+EXPOSE 3000
+ENV PORT=3000
+
+CMD ["node", "server/index.js"]

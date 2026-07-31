@@ -27,7 +27,10 @@ function roomForRequest(request) {
 
 function initSocket(httpServer) {
   io = new Server(httpServer, {
-    cors: { origin: true, credentials: true },
+    cors: {
+      origin: env.clientOrigins.length > 0 ? env.clientOrigins : true,
+      credentials: true,
+    },
   });
 
   io.use(async (socket, next) => {
