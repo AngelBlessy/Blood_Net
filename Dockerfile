@@ -1,3 +1,5 @@
+# syntax = docker/dockerfile:1
+
 # Server-only image for Fly.io. The client (React/Vite app in client/) is
 # deployed separately on Vercel and is deliberately NOT built or copied here.
 #
@@ -6,7 +8,10 @@
 # build context, e.g.:
 #   fly deploy   (run from the repo root, using fly.toml's default context)
 
-FROM node:20-alpine AS deps
+# Adjust NODE_VERSION as desired
+ARG NODE_VERSION=22.21.1
+
+FROM node:${NODE_VERSION}-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 # --ignore-scripts skips the root "postinstall" script, which otherwise runs
@@ -14,7 +19,10 @@ COPY package.json package-lock.json ./
 # since client/ isn't copied in.
 RUN npm ci --omit=dev --ignore-scripts
 
-FROM node:20-alpine AS runner
+FROM node:${NODE_VERSION}-alpine AS runner
+
+LABEL fly_launch_runtime="Node.js"
+
 ENV NODE_ENV=production
 WORKDIR /app
 
@@ -26,8 +34,8 @@ COPY server ./server
 
 USER nodejs
 
-# Fly.io sets PORT=8080 via fly.toml's [env] block, overriding this default —
-# it's only used for `docker run` outside of Fly.
+# fly.toml's [env] block sets the real PORT (matching internal_port),
+# overriding this default — it's only used for `docker run` outside of Fly.
 EXPOSE 3000
 ENV PORT=3000
 

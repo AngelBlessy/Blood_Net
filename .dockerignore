@@ -9,6 +9,8 @@ docs
 .github
 .vscode
 .idea
+.DS_Store
+*.local
 
 .env
 .env.*
