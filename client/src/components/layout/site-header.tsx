@@ -116,23 +116,28 @@ export function SiteHeader() {
             </Button>
           ))}
 
-          {workspaceLinks.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="shrink-0 gap-1">
-                  {t('workspacesLabel')}
-                  <ChevronDown className="size-3.5 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {workspaceLinks.map((link) => (
-                  <DropdownMenuItem key={link.to} asChild>
-                    <Link to={link.to}>{t(link.label)}</Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {workspaceLinks.length > 0 &&
+            (session ? (
+              <Button variant="ghost" size="sm" className="shrink-0" asChild>
+                <Link to={workspaceLinks[0].to}>{t('workspacesLabel')}</Link>
+              </Button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="shrink-0 gap-1">
+                    {t('workspacesLabel')}
+                    <ChevronDown className="size-3.5 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {workspaceLinks.map((link) => (
+                    <DropdownMenuItem key={link.to} asChild>
+                      <Link to={link.to}>{t(link.label)}</Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ))}
         </nav>
 
         <div className="flex shrink-0 items-center gap-1.5">
