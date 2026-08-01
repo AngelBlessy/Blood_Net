@@ -201,6 +201,7 @@
   "errStateRequired": "Enter your state.",
   "errUnitsNonNegative": "Units cannot be negative.",
   "errExpiryRequired": "Select the nearest expiry date.",
+  "errExpiryPast": "Expiry date cannot be in the past.",
   "errLocationRequired": "Enter a storage location.",
 
   "priorityCritical": "Critical",

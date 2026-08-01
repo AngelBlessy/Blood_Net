@@ -11,9 +11,15 @@ import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
 import { useInventoryStore } from '@/store/inventory-store';
 import { apiErrorMessage } from '@/lib/api';
 
+function todayDateString() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 export function InventoryForm() {
   const { t } = useTranslation();
   const updateItem = useInventoryStore((state) => state.updateItem);
+  const minExpiry = todayDateString();
 
   const form = useForm<InventoryInput, unknown, InventoryValues>({
     resolver: zodResolver(inventorySchema),
@@ -80,7 +86,7 @@ export function InventoryForm() {
               <FormItem>
                 <FormLabel>{t('fieldExpiryDate')}</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  <Input type="date" min={minExpiry} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
