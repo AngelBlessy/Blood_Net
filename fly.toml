@@ -9,7 +9,7 @@
 #     SMTP_USER=... SMTP_PASS=... CLIENT_ORIGIN=https://your-app.vercel.app
 
 app = 'blood-net'
-primary_region = 'iad'
+primary_region = 'sin'
 
 [build]
 
