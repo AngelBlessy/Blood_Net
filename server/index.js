@@ -14,7 +14,7 @@ async function main() {
   const httpServer = http.createServer(app);
   initSocket(httpServer);
 
-  httpServer.listen(env.port, () => {
+  httpServer.listen(env.port, '0.0.0.0', () => {
     console.log(`BloodNet server running at http://localhost:${env.port}`);
     console.log('SMTP (email OTP/alerts):', env.isSmtpConfigured() ? 'configured' : 'not configured');
     console.log('Twilio (SMS OTP/alerts):', env.isTwilioConfigured() ? 'configured' : 'not configured');
