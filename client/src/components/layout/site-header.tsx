@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Menu, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,12 +48,29 @@ function displayName(user: User): string {
 export function SiteHeader() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const session = useSessionStore((state) => state.session);
   const setUser = useSessionStore((state) => state.setUser);
 
   function handleNavClick() {
     setMobileOpen(false);
+  }
+
+  // react-router only re-scrolls on a hash change; clicking a section link
+  // while already on that section (e.g. after scrolling away from it) leaves
+  // the URL unchanged, so nothing would otherwise happen. Scroll manually.
+  function handleSectionLinkClick(event: React.MouseEvent, to: string) {
+    setMobileOpen(false);
+    const hashIndex = to.indexOf('#');
+    if (hashIndex === -1) return;
+
+    const targetPath = to.slice(0, hashIndex) || '/';
+    const targetHash = to.slice(hashIndex);
+    if (location.pathname === targetPath && location.hash === targetHash) {
+      event.preventDefault();
+      document.getElementById(targetHash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   async function handleLogout() {
@@ -93,29 +110,34 @@ export function SiteHeader() {
               className={link.core ? 'shrink-0' : 'hidden shrink-0 lg:inline-flex'}
               asChild
             >
-              <Link to={link.to} onClick={handleNavClick}>
+              <Link to={link.to} onClick={(event) => handleSectionLinkClick(event, link.to)}>
                 {t(link.label)}
               </Link>
             </Button>
           ))}
 
-          {workspaceLinks.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="shrink-0 gap-1">
-                  {t('workspacesLabel')}
-                  <ChevronDown className="size-3.5 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {workspaceLinks.map((link) => (
-                  <DropdownMenuItem key={link.to} asChild>
-                    <Link to={link.to}>{t(link.label)}</Link>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
+          {workspaceLinks.length > 0 &&
+            (session ? (
+              <Button variant="ghost" size="sm" className="shrink-0" asChild>
+                <Link to={workspaceLinks[0].to}>{t('workspacesLabel')}</Link>
+              </Button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="shrink-0 gap-1">
+                    {t('workspacesLabel')}
+                    <ChevronDown className="size-3.5 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {workspaceLinks.map((link) => (
+                    <DropdownMenuItem key={link.to} asChild>
+                      <Link to={link.to}>{t(link.label)}</Link>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ))}
         </nav>
 
         <div className="flex shrink-0 items-center gap-1.5">
@@ -164,7 +186,7 @@ export function SiteHeader() {
           <div className="flex flex-col gap-1">
             {NAV_LINKS.map((link) => (
               <Button key={link.to} variant="ghost" size="sm" className="justify-start" asChild>
-                <Link to={link.to} onClick={handleNavClick}>
+                <Link to={link.to} onClick={(event) => handleSectionLinkClick(event, link.to)}>
                   {t(link.label)}
                 </Link>
               </Button>

@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { apiGet, apiErrorMessage } from '@/lib/api';
+import { apiGet, apiErrorMessage, API_BASE_URL } from '@/lib/api';
 import i18n from '@/i18n';
 import type { DonorSummary } from '@/types/domain';
 
@@ -68,7 +68,7 @@ export function DonationHistoryCard() {
               <div className="flex items-center gap-3">
                 <span className="text-muted-foreground">{t('unitsCount', { count: donation.unitsDonated })}</span>
                 <Button variant="ghost" size="sm" className="h-auto gap-1 p-0 text-primary" asChild>
-                  <a href={`/api/donors/me/donations/${donation.id}/certificate`} download>
+                  <a href={`${API_BASE_URL}/api/donors/me/donations/${donation.id}/certificate`} download>
                     <Download className="size-3.5" /> {t('downloadCertificateButton')}
                   </a>
                 </Button>

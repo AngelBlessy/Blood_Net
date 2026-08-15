@@ -1,21 +1,22 @@
 const DonorProfile = require('../models/donor-profile.model');
-const DonorResponse = require('../models/donor-response.model');
 const { isDonorCompatible } = require('./blood-compatibility.service');
 const { haversineKm } = require('./geo.service');
-
-const ELIGIBILITY_WINDOW_DAYS = 90;
+const { computeDonorScores } = require('./priority-score.service');
 
 function sameText(a, b) {
   return Boolean(a) && Boolean(b) && a.trim().toLowerCase() === b.trim().toLowerCase();
 }
 
-// Simple rule-based ranking (no ML): donors who haven't donated in a while
-// score higher on eligibility, donors who reliably accept past alerts score
-// higher on responsiveness. Ties are broken by whichever compares first.
+// Filters + ranks donors for the emergency-alert flow. Ranking is delegated to
+// `computeDonorScores` (priority-score.service.js) -- the same real Priority
+// Score pipeline (trained-model AI probability + distance + recency +
+// response rate + donation count) the /search page uses -- so "most likely to
+// respond" means the same thing whether a hospital is searching or an alert
+// is going out. This function's own job is purely the filtering that's
+// specific to *how a request should reach donors*: compatibility,
+// availability, exclusions, and city/state-or-radius scoping.
 //
-// Filter options (all optional, and all filters only — never a scoring
-// weight; the scoring formula itself intentionally stays untouched here,
-// that's Feature 8's territory, paused for now):
+// Filter options (all optional, and all filters only):
 //   - `excludeUserId` — skip one specific donor (e.g. a donor alerting
 //     themselves about their own raised request).
 //   - `includeTraveling` — when true, skips the normal `traveling: false`
@@ -56,29 +57,7 @@ async function findRankedDonors(
 
   if (!compatible.length) return [];
 
-  const donorIds = compatible.map((donor) => donor._id);
-  const responses = await DonorResponse.find({ donorId: { $in: donorIds } });
-  const stats = new Map();
-  for (const response of responses) {
-    const key = response.donorId.toString();
-    const stat = stats.get(key) || { accepted: 0, total: 0 };
-    stat.total += 1;
-    if (response.response === 'Accepted') stat.accepted += 1;
-    stats.set(key, stat);
-  }
-
-  const now = Date.now();
-  const scored = compatible.map((donor) => {
-    const daysSince = donor.lastDonationDate
-      ? (now - donor.lastDonationDate.getTime()) / (24 * 60 * 60 * 1000)
-      : Infinity;
-    const eligibilityScore = Math.min(daysSince / ELIGIBILITY_WINDOW_DAYS, 1) * 60;
-    const stat = stats.get(donor._id.toString());
-    const responseScore = stat && stat.total > 0 ? (stat.accepted / stat.total) * 40 : 20;
-    return { donor, score: eligibilityScore + responseScore };
-  });
-
-  scored.sort((a, b) => b.score - a.score);
+  const scored = await computeDonorScores(compatible, { originPoint, radiusKm });
   return scored.map((entry) => entry.donor);
 }
 

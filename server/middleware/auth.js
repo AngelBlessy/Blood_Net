@@ -4,6 +4,13 @@ const { env } = require('../config/env');
 const COOKIE_NAME = 'bloodnet_token';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
+// Client (Vercel) and server (Fly.io) are on different domains in
+// production, so the auth cookie must be sent cross-site. That requires
+// SameSite=None, which browsers only honor when Secure is also set. In dev
+// the client is same-site (Vite proxy), where SameSite=None would actually
+// be rejected without HTTPS, so keep Lax there.
+const CROSS_SITE_COOKIES = env.clientOrigins.length > 0;
+
 function signToken(payload) {
   return jwt.sign(payload, env.jwt.secret, { expiresIn: env.jwt.expiresIn });
 }
@@ -11,14 +18,18 @@ function signToken(payload) {
 function setAuthCookie(res, token) {
   res.cookie(COOKIE_NAME, token, {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: env.nodeEnv === 'production',
+    sameSite: CROSS_SITE_COOKIES ? 'none' : 'lax',
+    secure: CROSS_SITE_COOKIES || env.nodeEnv === 'production',
     maxAge: COOKIE_MAX_AGE_MS,
   });
 }
 
 function clearAuthCookie(res) {
-  res.clearCookie(COOKIE_NAME, { httpOnly: true, sameSite: 'lax', secure: env.nodeEnv === 'production' });
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: CROSS_SITE_COOKIES ? 'none' : 'lax',
+    secure: CROSS_SITE_COOKIES || env.nodeEnv === 'production',
+  });
 }
 
 function requireAuth(req, res, next) {

@@ -5,7 +5,7 @@ export function SiteFooter() {
   const { t } = useTranslation();
 
   return (
-    <footer className="border-t bg-secondary/40">
+    <footer className="overflow-x-hidden border-t bg-secondary/40">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:grid-cols-3 sm:px-6 lg:px-8">
         <div>
           <Link to="/" className="flex items-center gap-2">

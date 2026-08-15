@@ -8,7 +8,7 @@
   "headerRequest": "Raise request",
   "adminLogin": "Admin login",
   "adminLogout": "Admin logout",
-  "ctaRegister": "Register donor",
+  "ctaRegister": "Register",
   "ctaLogin": "Login",
   "heroPill": "AI-powered - Real-time",
   "heroTitle": "Every second counts.",
@@ -112,7 +112,7 @@
   "toastNotify": "Top matched donors notified.",
   "toastRequest": "Emergency request sent.",
 
-  "workspacesLabel": "Workspaces",
+  "workspacesLabel": "Workspace",
   "workspaceHospital": "Hospital",
   "workspaceBloodBank": "Blood Bank",
   "workspaceAdmin": "Admin",
@@ -201,6 +201,7 @@
   "errStateRequired": "Enter your state.",
   "errUnitsNonNegative": "Units cannot be negative.",
   "errExpiryRequired": "Select the nearest expiry date.",
+  "errExpiryPast": "Expiry date cannot be in the past.",
   "errLocationRequired": "Enter a storage location.",
 
   "priorityCritical": "Critical",

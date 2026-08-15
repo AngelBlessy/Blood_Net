@@ -1,4 +1,5 @@
 import type { BackendModule, ReadCallback } from 'i18next';
+import { API_BASE_URL } from '@/lib/api';
 import en from './locales/en.json';
 
 type Dict = Record<string, string>;
@@ -55,7 +56,7 @@ function restorePlaceholders(text: string, placeholders: string[]): string {
 const CHUNK_SIZE = 100;
 
 async function translateChunk(texts: string[], language: string): Promise<string[]> {
-  const response = await fetch('/api/translate', {
+  const response = await fetch(`${API_BASE_URL}/api/translate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ texts, target: language, source: 'en' }),
