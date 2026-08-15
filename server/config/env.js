@@ -47,6 +47,14 @@ const env = {
     apiKey: process.env.GOOGLE_TRANSLATE_API_KEY || '',
   },
 
+  // Local Flask/XGBoost service (see ml/app.py) -- not a secret, just a local
+  // same-machine URL, so no "configured or not" gate like the other
+  // integrations. ai-prediction.service.js falls back to a heuristic if this
+  // is unreachable, so it's safe to leave running or not.
+  ml: {
+    serviceUrl: process.env.ML_SERVICE_URL || 'http://127.0.0.1:5001',
+  },
+
   isSmtpConfigured() {
     return Boolean(process.env.SMTP_USER) && !String(process.env.SMTP_USER).includes('your_');
   },

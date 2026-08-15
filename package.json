@@ -5,14 +5,17 @@
   "type": "commonjs",
   "scripts": {
     "postinstall": "npm install --prefix client",
-    "dev": "concurrently -n server,client -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev": "concurrently -n server,client,ml -c blue,magenta,green \"npm:dev:server\" \"npm:dev:client\" \"npm:dev:ml\"",
     "dev:server": "node server/index.js",
     "dev:client": "npm run dev --prefix client",
+    "dev:ml": "python ml/app.py",
     "build": "npm run build --prefix client",
     "start": "node server/index.js",
     "seed": "node server/seed.js",
     "typecheck": "npm run typecheck --prefix client",
-    "lint": "npm run lint --prefix client"
+    "lint": "npm run lint --prefix client",
+    "ml:setup": "pip install -r ml/requirements.txt",
+    "ml:train": "python ml/generate_training_data.py && python ml/train_model.py"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

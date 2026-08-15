@@ -6,6 +6,12 @@ npm-debug.log*
 # Build output
 client/dist/
 
+# Generated ML artifacts -- reproducible via `npm run ml:train`, not source.
+ml/data/
+ml/model/
+__pycache__/
+*.pyc
+
 # Editor / OS
 .vscode/
 .idea/
