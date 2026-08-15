@@ -3,7 +3,10 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-# Server-only deploy: the client (client/) is hosted separately on Vercel.
+# Server + ML deploy: the client (client/) is hosted separately on Vercel.
+# The ML availability-prediction service (ml/app.py) runs in the same VM as
+# the Node API -- see Dockerfile / docker/start.sh -- reachable only over
+# loopback, not exposed as its own Fly service.
 # First-time secrets setup:
 #   fly secrets set MONGODB_URI=... JWT_SECRET=... ADMIN_EMAIL=... ADMIN_PASSWORD=... \
 #     SMTP_USER=... SMTP_PASS=... CLIENT_ORIGIN=https://your-app.vercel.app
@@ -33,7 +36,9 @@ primary_region = 'sin'
     path = '/health'
 
 [[vm]]
-  memory = '1gb'
+  # Bumped from 1gb: the VM now also runs the Flask/XGBoost ML service
+  # alongside Node (pandas + numpy + a loaded booster add real headroom).
+  memory = '2gb'
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 1024
+  memory_mb = 2048

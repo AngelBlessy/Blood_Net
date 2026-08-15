@@ -1,5 +1,8 @@
+# xgboost-cpu (not "xgboost") -- same `import xgboost` API, but skips the
+# ~340MB nvidia-nccl-cu12 GPU dependency that the regular package pulls in
+# for multi-GPU training, which this CPU-only inference service never uses.
 flask~=3.1
-xgboost~=3.2
+xgboost-cpu~=3.2
 scikit-learn~=1.9
 pandas~=3.0
 numpy~=2.4

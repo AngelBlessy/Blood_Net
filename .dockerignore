@@ -5,6 +5,11 @@ npm-debug.log*
 client
 docs
 
+# Regenerated during the ml-build Docker stage (see Dockerfile) -- any local
+# copies would just be dead weight in the build context, then overwritten.
+ml/data
+ml/model
+
 .git
 .github
 .vscode
