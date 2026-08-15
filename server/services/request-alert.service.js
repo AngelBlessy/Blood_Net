@@ -4,12 +4,19 @@ const { sendSms } = require('./sms.service');
 const { haversineKm } = require('./geo.service');
 const { notifyUser } = require('./notification.service');
 const BloodBankProfile = require('../models/blood-bank-profile.model');
+const { NOTIFY_TIER_SIZE } = require('../constants');
 
-// `options.includeTraveling` — the hospital's manual "notify all" override.
+// `options.includeTraveling` — the hospital's manual "notify all" override:
+// reaches every remaining ranked donor in one go instead of just the next
+// tier, since it's meant to cast the widest net immediately.
+//
 // A donor is always excluded from being alerted about their own raised
 // request (derived from the request itself, not passed by callers) —
 // applies uniformly whether this runs at creation, a manual re-notify, or
-// the escalation job.
+// the escalation/tier jobs.
+//
+// Mutates `request.notifiedDonorIds` in place (the caller is responsible for
+// `request.save()`, matching the existing pattern for `matches`/`status`).
 async function notifyDonorsForRequest(request, options = {}) {
   const { includeTraveling = false } = options;
   const excludeUserId = request.raisedBy === 'donor' ? request.raisedByUserId : null;
@@ -32,16 +39,34 @@ async function notifyDonorsForRequest(request, options = {}) {
           radiusKm: request.searchRadiusKm || null,
         };
 
-  const donors = await findRankedDonors(request.bloodGroup, matchOptions);
+  // Ranked highest-Priority-Score first (see donor-matching.service.js /
+  // priority-score.service.js) -- so "the next tier" below always means the
+  // next-most-likely-to-respond donors, not an arbitrary slice.
+  const rankedDonors = await findRankedDonors(request.bloodGroup, matchOptions);
 
-  if (!donors.length) {
+  const alreadyNotifiedIds = (request.notifiedDonorIds || []).map((id) => id.toString());
+  const alreadyNotified = new Set(alreadyNotifiedIds);
+  const notYetNotified = rankedDonors.filter((donor) => !alreadyNotified.has(donor._id.toString()));
+
+  if (!notYetNotified.length) {
     return {
-      matches: 0,
+      matches: alreadyNotified.size,
+      newlyNotified: 0,
       emailSent: 0,
       smsSent: 0,
-      message: 'No compatible registered donors are currently available.',
+      message:
+        alreadyNotified.size > 0
+          ? `Already alerted the ${alreadyNotified.size} best-matching donor${
+              alreadyNotified.size === 1 ? '' : 's'
+            } available.`
+          : 'No compatible registered donors are currently available.',
     };
   }
+
+  // Notify-all reaches everyone remaining; the normal flow (creation, manual
+  // re-notify, tier job) reaches only the next priority tier, holding the
+  // rest in reserve so the highest-ranked donors get first chance to respond.
+  const tier = includeTraveling ? notYetNotified : notYetNotified.slice(0, NOTIFY_TIER_SIZE);
 
   const contactName = request.contactName || request.guestName;
   const contactPhone = request.contactPhone || request.guestPhone;
@@ -49,7 +74,7 @@ async function notifyDonorsForRequest(request, options = {}) {
   const subjectBase = `Urgent blood request: ${request.bloodGroup} needed`;
 
   const results = await Promise.all(
-    donors.map(async (donor) => {
+    tier.map(async (donor) => {
       const distanceKm = request.location ? haversineKm(request.location, donor.location) : null;
       const message = [
         'BloodNet emergency alert',
@@ -86,11 +111,17 @@ async function notifyDonorsForRequest(request, options = {}) {
   const emailSent = results.filter((result) => result.email).length;
   const smsSent = results.filter((result) => result.sms).length;
 
+  request.notifiedDonorIds = [...alreadyNotifiedIds, ...tier.map((donor) => donor._id)];
+  const remaining = notYetNotified.length - tier.length;
+
   return {
-    matches: donors.length,
+    matches: request.notifiedDonorIds.length,
+    newlyNotified: tier.length,
     emailSent,
     smsSent,
-    message: `Alert sent to ${donors.length} donor${donors.length === 1 ? '' : 's'} (${emailSent} email, ${smsSent} SMS).`,
+    message: `Alert sent to ${tier.length} donor${tier.length === 1 ? '' : 's'} (${emailSent} email, ${smsSent} SMS)${
+      remaining > 0 ? ` — ${remaining} more in reserve if needed` : ''
+    }.`,
   };
 }
 

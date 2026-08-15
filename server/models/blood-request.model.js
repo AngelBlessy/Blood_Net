@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { BLOOD_GROUPS, REQUEST_PRIORITIES, RADIUS_STEPS_KM } = require('../constants');
+const { BLOOD_GROUPS, REQUEST_PRIORITIES, RADIUS_STEPS_KM, TIER_NOTIFY_INTERVAL_MS } = require('../constants');
 const { geoPointSchema } = require('./geo-point.schema');
 
 const ESCALATION_INTERVAL_MS = 10 * 60 * 1000;
@@ -36,6 +36,14 @@ const bloodRequestSchema = new mongoose.Schema(
     radiusExpansions: { type: Number, default: 0 },
     nextEscalationAt: { type: Date, default: () => new Date(Date.now() + ESCALATION_INTERVAL_MS) },
     escalationDone: { type: Boolean, default: false },
+    // Priority-tiered notification: every donor ever alerted for this request,
+    // so re-notify calls (manual, or the tier-progression job) only reach
+    // *new* donors instead of re-spamming the same top-ranked ones. Separate
+    // from the km-radius escalation above -- this progresses through the
+    // *already-matched* ranked pool; radius escalation grows the pool itself.
+    notifiedDonorIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'DonorProfile' }],
+    nextTierNotifyAt: { type: Date, default: () => new Date(Date.now() + TIER_NOTIFY_INTERVAL_MS) },
+    tierNotifyDone: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
