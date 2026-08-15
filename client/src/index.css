@@ -114,12 +114,13 @@
     @apply border-border outline-ring/50;
   }
 
-  html {
-    @apply overflow-x-hidden;
-  }
-
+  /* overflow-x-hidden lives on `main`/`footer` (root-layout.tsx, site-footer.tsx),
+     not here — html/body are ancestors of the sticky site header, and clipping
+     overflow-x on them forces overflow-y to a computed `auto` (per the CSS
+     overflow spec), which turns them into scroll containers and breaks the
+     header's `position: sticky` the moment you scroll past the first section. */
   body {
-    @apply overflow-x-hidden bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground font-sans antialiased;
   }
 
   h1,

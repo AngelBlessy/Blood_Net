@@ -17,6 +17,15 @@ const env = {
   port: Number(process.env.PORT || 3000),
   nodeEnv: process.env.NODE_ENV || 'development',
 
+  // Comma-separated list of allowed frontend origins (e.g. the Vercel
+  // deployment URL) for cross-origin API/cookie requests once client and
+  // server are hosted separately. Empty in dev, where Vite's proxy makes
+  // requests same-origin.
+  clientOrigins: (process.env.CLIENT_ORIGIN || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+
   mongodbUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/bloodnet2',
 
   jwt: {
