@@ -111,3 +111,23 @@ jobs:
       # that typecheck alone won't.
       - name: Build client
         run: npm run build
+
+  # Runs only after every CI job above succeeds, and only on a push to
+  # Integration (never on a pull_request run, where github.ref points at a
+  # merge ref rather than refs/heads/Integration). SSHes into the already
+  # -provisioned deploy host and runs its own deploy script -- this job does
+  # not touch application source or environment files itself; the remote
+  # script (outside this repo) owns fetch/build/health-check/rollback.
+  deploy:
+    name: Deploy (Integration -> api.angelblessy.com)
+    needs: [lint-and-typecheck, server-tests, client-build]
+    if: github.ref == 'refs/heads/Integration'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: /home/duke/.config/bloodnet-deploy/deploy-integration.sh
