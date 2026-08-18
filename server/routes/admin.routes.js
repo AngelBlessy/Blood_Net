@@ -13,5 +13,7 @@ router.get('/hospitals/pending', asyncHandler(ctrl.pendingHospitals));
 router.post('/hospitals/:id/:decision(approve|reject)', asyncHandler(ctrl.decideHospital));
 router.get('/bloodbanks/pending', asyncHandler(ctrl.pendingBloodBanks));
 router.post('/bloodbanks/:id/:decision(approve|reject)', asyncHandler(ctrl.decideBloodBank));
+router.get('/users', asyncHandler(ctrl.listUsers));
+router.post('/users/:id/:action(suspend|activate)', asyncHandler(ctrl.setUserStatus));
 
 module.exports = router;

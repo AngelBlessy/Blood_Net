@@ -238,3 +238,17 @@ export interface AdminAnalytics {
     loyalDonors: number;
   };
 }
+
+export type ManageableRole = 'donor' | 'hospital' | 'bloodbank';
+export type UserAccountStatus = 'pending' | 'active' | 'suspended';
+
+export interface AdminUserListItem {
+  id: string;
+  name: string | null;
+  city: string | null;
+  role: ManageableRole;
+  email: string;
+  phone: string;
+  status: UserAccountStatus;
+  createdAt: string;
+}

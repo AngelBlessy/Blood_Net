@@ -1,3 +1,4 @@
+const User = require('../models/user.model');
 const HospitalProfile = require('../models/hospital-profile.model');
 const BloodBankProfile = require('../models/blood-bank-profile.model');
 const DonorProfile = require('../models/donor-profile.model');
@@ -8,6 +9,8 @@ const { BLOOD_GROUPS, REQUEST_PRIORITIES } = require('../constants');
 const { emitToAdmins } = require('../realtime/socket');
 
 const LOW_STOCK_THRESHOLD = 5;
+const MANAGEABLE_ROLES = ['donor', 'hospital', 'bloodbank'];
+const USER_LIST_LIMIT = 50;
 // Retention funnel stages, in donation-count order. "loyal" reuses the Silver
 // badge threshold (see donor-stats.service.js) so this reads consistently
 // with the badge a donor would actually be showing on their profile.
@@ -97,6 +100,93 @@ async function decideBloodBank(req, res) {
   if (!bank) return res.status(404).json({ error: 'Blood bank not found.' });
   emitToAdmins('admin:refresh');
   res.json({ ok: true, bloodBank: serializeBloodBank(bank) });
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Donor/hospital/bloodbank accounts, merged with their profile's display
+// name — the pending-approval endpoints above only ever surface *new*
+// hospital/bank signups; this is the general-purpose list for finding an
+// existing account (any role, any status) to inspect or suspend.
+async function listUsers(req, res) {
+  const role = MANAGEABLE_ROLES.includes(req.query.role) ? req.query.role : undefined;
+  const status = ['pending', 'active', 'suspended'].includes(req.query.status) ? req.query.status : undefined;
+  const search = String(req.query.search || '').trim();
+  const limit = Math.min(Math.max(Number(req.query.limit) || USER_LIST_LIMIT, 1), 200);
+
+  const filter = { role: role || { $in: MANAGEABLE_ROLES } };
+  if (status) filter.status = status;
+  if (search) {
+    const pattern = new RegExp(escapeRegex(search), 'i');
+    filter.$or = [{ email: pattern }, { phone: pattern }];
+  }
+
+  const [total, users] = await Promise.all([
+    User.countDocuments(filter),
+    User.find(filter).sort({ createdAt: -1 }).limit(limit),
+  ]);
+
+  const donorIds = users.filter((user) => user.role === 'donor').map((user) => user._id);
+  const hospitalIds = users.filter((user) => user.role === 'hospital').map((user) => user._id);
+  const bankIds = users.filter((user) => user.role === 'bloodbank').map((user) => user._id);
+
+  const [donors, hospitals, banks] = await Promise.all([
+    DonorProfile.find({ userId: { $in: donorIds } }),
+    HospitalProfile.find({ userId: { $in: hospitalIds } }),
+    BloodBankProfile.find({ userId: { $in: bankIds } }),
+  ]);
+  const donorMap = new Map(donors.map((profile) => [profile.userId.toString(), profile]));
+  const hospitalMap = new Map(hospitals.map((profile) => [profile.userId.toString(), profile]));
+  const bankMap = new Map(banks.map((profile) => [profile.userId.toString(), profile]));
+
+  const items = users.map((user) => {
+    const id = user._id.toString();
+    let name = null;
+    let city = null;
+    if (user.role === 'donor') {
+      const profile = donorMap.get(id);
+      name = profile?.name ?? null;
+      city = profile?.city ?? null;
+    } else if (user.role === 'hospital') {
+      const profile = hospitalMap.get(id);
+      name = profile?.hospitalName ?? null;
+      city = profile?.city ?? null;
+    } else if (user.role === 'bloodbank') {
+      const profile = bankMap.get(id);
+      name = profile?.bankName ?? null;
+      city = profile?.city ?? null;
+    }
+    return {
+      id,
+      name,
+      city,
+      role: user.role,
+      email: user.email,
+      phone: user.phone,
+      status: user.status,
+      createdAt: user.createdAt,
+    };
+  });
+
+  res.json({ users: items, total });
+}
+
+async function setUserStatus(req, res) {
+  const user = await User.findById(req.params.id);
+  if (!user) return res.status(404).json({ error: 'User not found.' });
+  // Admin accounts aren't in MANAGEABLE_ROLES and never reach this list in
+  // the UI, but guard server-side too — this also rules out an admin
+  // suspending their own account, since that's always role 'admin'.
+  if (!MANAGEABLE_ROLES.includes(user.role)) {
+    return res.status(403).json({ error: 'This account cannot be managed here.' });
+  }
+
+  user.status = req.params.action === 'suspend' ? 'suspended' : 'active';
+  await user.save();
+  emitToAdmins('admin:refresh');
+  res.json({ ok: true, id: user._id.toString(), status: user.status });
 }
 
 // Oldest-first list of the last `count` months as 'YYYY-MM' keys, so the
@@ -280,4 +370,14 @@ async function analytics(_req, res) {
   });
 }
 
-module.exports = { stats, analytics, trends, pendingHospitals, decideHospital, pendingBloodBanks, decideBloodBank };
+module.exports = {
+  stats,
+  analytics,
+  trends,
+  pendingHospitals,
+  decideHospital,
+  pendingBloodBanks,
+  decideBloodBank,
+  listUsers,
+  setUserStatus,
+};

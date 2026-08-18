@@ -14,6 +14,9 @@
     "seed": "node server/seed.js",
     "typecheck": "npm run typecheck --prefix client",
     "lint": "npm run lint --prefix client",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "ml:setup": "pip install -r ml/requirements.txt",
     "ml:train": "python ml/generate_training_data.py && python ml/train_model.py"
   },
@@ -32,6 +35,10 @@
     "twilio": "^5.4.0"
   },
   "devDependencies": {
-    "concurrently": "^10.0.3"
+    "@vitest/coverage-v8": "^4.1.11",
+    "concurrently": "^10.0.3",
+    "mongodb-memory-server": "^11.2.0",
+    "supertest": "^7.2.2",
+    "vitest": "^4.1.11"
   }
 }

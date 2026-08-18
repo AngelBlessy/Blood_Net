@@ -136,7 +136,16 @@ async function verifyOtpHandler(req, res) {
   const result = await verifyOtp({ target, purpose: 'register', otp });
   if (!result.ok) return res.status(400).json({ error: result.message });
 
-  await User.findByIdAndUpdate(result.userId, { emailVerified: true, phoneVerified: true, status: 'active' });
+  // Not unconditional: an admin may have suspended this account while it was
+  // still pending (e.g. flagged as spam) — completing OTP verification
+  // shouldn't silently undo that.
+  const user = await User.findById(result.userId);
+  if (user) {
+    user.emailVerified = true;
+    user.phoneVerified = true;
+    if (user.status !== 'suspended') user.status = 'active';
+    await user.save();
+  }
   return res.json({ ok: true });
 }
 
@@ -163,6 +172,9 @@ async function login(req, res) {
   const user = await User.findOne({ email });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
     return res.status(401).json({ error: 'Incorrect email or password.' });
+  }
+  if (user.status === 'suspended') {
+    return res.status(403).json({ error: 'This account has been suspended. Contact support for help.' });
   }
   if (!user.emailVerified || !user.phoneVerified) {
     return res.status(403).json({ error: 'Complete registration OTP verification before logging in.' });

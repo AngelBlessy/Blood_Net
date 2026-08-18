@@ -1,0 +1,113 @@
+name: CI
+
+# Runs on every push to Integration/main and on every pull request targeting
+# either. This is CI only -- lint, typecheck, the server test suite, and a
+# real client build. Deployment to Fly.io/Vercel is already configured
+# outside of this repo's GitHub Actions (their own auto-deploy-on-push), so
+# nothing here builds or ships an artifact anywhere.
+on:
+  push:
+    branches: [Integration, main]
+  pull_request:
+    branches: [Integration, main]
+
+# Cancel a superseded run (e.g. a second push to the same PR) instead of
+# letting both finish -- saves Actions minutes, and only the latest commit's
+# result matters for a status check anyway.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Matches Dockerfile's ARG NODE_VERSION -- keeping CI, local dev, and the
+  # production image on the same Node version avoids "works in CI, breaks in
+  # prod" (or vice versa) surprises from engine-specific behavior.
+  NODE_VERSION: '22.21.1'
+
+jobs:
+  lint-and-typecheck:
+    name: Lint & typecheck (client)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      # Full install (not --ignore-scripts): the postinstall hook is what
+      # installs client/'s own deps, and lint/typecheck both run against the
+      # client.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (oxlint)
+        run: npm run lint
+
+      - name: Typecheck (tsc, no emit)
+        run: npm run typecheck
+
+  server-tests:
+    name: Server tests (unit + integration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # --ignore-scripts: server tests don't touch the client, so skip its
+      # postinstall subinstall entirely -- mirrors the same flag the
+      # Dockerfile's `deps` stage uses for the same reason.
+      - name: Install server dependencies
+        run: npm ci --ignore-scripts
+
+      # mongodb-memory-server downloads a real mongod binary (tens of MB) on
+      # first use; caching it means only the very first CI run on a given OS
+      # pays that cost.
+      - name: Cache mongodb-memory-server binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-coverage
+          path: coverage/
+          retention-days: 14
+
+  client-build:
+    name: Client production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Not just a lint/typecheck stand-in -- this is the real `vite build`,
+      # which catches build-time-only failures (bad imports, plugin errors)
+      # that typecheck alone won't.
+      - name: Build client
+        run: npm run build

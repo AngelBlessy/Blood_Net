@@ -37,6 +37,7 @@ const WORKSPACE_LINKS = [
   { to: '/blood-bank', label: 'workspaceBloodBank' },
   { to: '/admin', label: 'workspaceAdmin' },
   { to: '/admin/insights', label: 'workspaceInsights' },
+  { to: '/admin/users', label: 'workspaceUsers' },
 ] as const;
 
 function displayName(user: User): string {
@@ -85,7 +86,7 @@ export function SiteHeader() {
         (link) =>
           (link.to === '/hospital' && session.user.role === 'hospital') ||
           (link.to === '/blood-bank' && session.user.role === 'bloodbank') ||
-          ((link.to === '/admin' || link.to === '/admin/insights') && session.user.role === 'admin')
+          (link.to.startsWith('/admin') && session.user.role === 'admin')
       )
     : WORKSPACE_LINKS;
 
