@@ -1,6 +1,7 @@
 const BloodInventory = require('../models/blood-inventory.model');
 const BloodBankProfile = require('../models/blood-bank-profile.model');
 const { BLOOD_GROUPS } = require('../constants');
+const { emitToAdmins } = require('../realtime/socket');
 
 function serialize(item) {
   return {
@@ -54,6 +55,7 @@ async function upsert(req, res) {
     { upsert: true, new: true }
   );
 
+  emitToAdmins('admin:refresh');
   res.json({ ok: true, item: serialize(item) });
 }
 

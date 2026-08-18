@@ -8,6 +8,7 @@ const { buildUserView } = require('../services/user-view.service');
 const { signToken, setAuthCookie, clearAuthCookie } = require('../middleware/auth');
 const { BLOOD_GROUPS } = require('../constants');
 const { parseLocationFromBody } = require('../services/geo.service');
+const { emitToAdmins } = require('../realtime/socket');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\d{10}$/;
@@ -81,6 +82,7 @@ async function register(req, res) {
       state,
       ...(location ? { location } : {}),
     });
+    emitToAdmins('admin:refresh');
     return finishRegistration(res, user, email, phone);
   }
 
@@ -102,6 +104,7 @@ async function register(req, res) {
       contactNumber: String(body.contactNumber || phone).trim(),
       ...(location ? { location } : {}),
     });
+    emitToAdmins('admin:refresh');
     return finishRegistration(res, user, email, phone);
   }
 
@@ -120,6 +123,7 @@ async function register(req, res) {
     contactNumber: String(body.contactNumber || phone).trim(),
     ...(location ? { location } : {}),
   });
+  emitToAdmins('admin:refresh');
   return finishRegistration(res, user, email, phone);
 }
 

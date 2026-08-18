@@ -168,3 +168,73 @@ export interface AdminStats {
   lowStockGroups: BloodGroup[];
   inventory: InventoryItem[];
 }
+
+export interface BloodGroupDemandPoint {
+  group: BloodGroup;
+  count: number;
+}
+
+export interface TopHospitalPoint {
+  hospitalName: string;
+  count: number;
+}
+
+export interface InventoryLevelPoint {
+  group: BloodGroup;
+  units: number;
+}
+
+export interface RequestPriorityPoint {
+  priority: RequestPriority;
+  count: number;
+}
+
+export interface DonorAvailabilityBreakdown {
+  available: number;
+  traveling: number;
+  unavailable: number;
+}
+
+export interface CityCountPoint {
+  city: string;
+  count: number;
+}
+
+export type TrendGranularity = 'day' | 'month';
+
+export interface NetworkTrendPoint {
+  key: string; // 'YYYY-MM-DD' when granularity is 'day', 'YYYY-MM' when 'month'
+  donations: number;
+  newDonors: number;
+}
+
+export interface NetworkTrends {
+  granularity: TrendGranularity;
+  points: NetworkTrendPoint[];
+}
+
+export interface AdminAnalytics {
+  donorCount: number;
+  hospitalsCount: number;
+  bloodBanksCount: number;
+  openRequests: number;
+  totalDonations: number;
+  lowStockGroups: BloodGroup[];
+  inventoryLevels: InventoryLevelPoint[];
+  bloodGroupDemand: BloodGroupDemandPoint[];
+  donorsByBloodGroup: BloodGroupDemandPoint[];
+  requestsByPriority: RequestPriorityPoint[];
+  donorAvailability: DonorAvailabilityBreakdown;
+  topCities: CityCountPoint[];
+  topHospitals: TopHospitalPoint[];
+  fulfillment: {
+    avgMinutes: number | null;
+    completedCount: number;
+  };
+  retention: {
+    registered: number;
+    donatedOnce: number;
+    donatedAgain: number;
+    loyalDonors: number;
+  };
+}

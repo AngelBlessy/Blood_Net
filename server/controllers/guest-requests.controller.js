@@ -3,6 +3,7 @@ const { issueOtp, resendEligibility, verifyOtp } = require('../services/otp.serv
 const { notifyDonorsForRequest } = require('../services/request-alert.service');
 const { BLOOD_GROUPS, REQUEST_PRIORITIES, RADIUS_STEPS_KM } = require('../constants');
 const { parseLocationFromBody } = require('../services/geo.service');
+const { emitToAdmins } = require('../realtime/socket');
 
 const PHONE_PATTERN = /^\d{10}$/;
 const OTP_PURPOSE = 'guest-request';
@@ -72,6 +73,7 @@ async function create(req, res) {
   request.matches = alertResult.matches;
   request.status = alertResult.matches > 0 ? alertResult.message : 'No compatible donors available';
   await request.save();
+  emitToAdmins('admin:refresh');
 
   res.status(201).json({
     ok: alertResult.matches > 0,

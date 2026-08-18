@@ -36,6 +36,7 @@ const WORKSPACE_LINKS = [
   { to: '/hospital', label: 'workspaceHospital' },
   { to: '/blood-bank', label: 'workspaceBloodBank' },
   { to: '/admin', label: 'workspaceAdmin' },
+  { to: '/admin/insights', label: 'workspaceInsights' },
 ] as const;
 
 function displayName(user: User): string {
@@ -84,7 +85,7 @@ export function SiteHeader() {
         (link) =>
           (link.to === '/hospital' && session.user.role === 'hospital') ||
           (link.to === '/blood-bank' && session.user.role === 'bloodbank') ||
-          (link.to === '/admin' && session.user.role === 'admin')
+          ((link.to === '/admin' || link.to === '/admin/insights') && session.user.role === 'admin')
       )
     : WORKSPACE_LINKS;
 
@@ -101,7 +102,13 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav className="hidden min-w-0 items-center gap-1 overflow-x-auto md:flex">
+        {/* p-1: overflow-x-auto below forces overflow-y to a computed "auto" too
+            (per spec — see the overflow-x-hidden comment in index.css), which
+            clips any child's focus ring/box-shadow that extends past the
+            nav's own padding box. Without this padding, a keyboard-focused
+            button's ring gets clipped on 3 of its 4 sides, reading as a stray
+            bracket instead of a full outline. */}
+        <nav className="hidden min-w-0 items-center gap-1 overflow-x-auto p-1 md:flex">
           {NAV_LINKS.map((link) => (
             <Button
               key={link.to}
@@ -117,7 +124,7 @@ export function SiteHeader() {
           ))}
 
           {workspaceLinks.length > 0 &&
-            (session ? (
+            (session && workspaceLinks.length === 1 ? (
               <Button variant="ghost" size="sm" className="shrink-0" asChild>
                 <Link to={workspaceLinks[0].to}>{t('workspacesLabel')}</Link>
               </Button>

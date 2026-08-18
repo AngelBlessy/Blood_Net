@@ -10,7 +10,7 @@ const { notifyDonorsForRequest, notifyBloodBanksForRequest } = require('../servi
 const { computeEligibility } = require('../services/donor-stats.service');
 const { BLOOD_GROUPS, REQUEST_PRIORITIES, RADIUS_STEPS_KM } = require('../constants');
 const { parseLocationFromBody } = require('../services/geo.service');
-const { emitToRequest } = require('../realtime/socket');
+const { emitToRequest, emitToAdmins } = require('../realtime/socket');
 const { notifyUser } = require('../services/notification.service');
 
 const PHONE_PATTERN = /^\d{10}$/;
@@ -218,6 +218,7 @@ async function create(req, res) {
 
   const serialized = serializeRequest(request, [], []);
   emitToRequest(request, 'request:update', serialized);
+  emitToAdmins('admin:refresh');
   res.status(201).json({
     ok: alertResult.matches > 0,
     message: alertResult.message,
@@ -283,6 +284,7 @@ async function update(req, res) {
     bankResponseMap.get(request._id.toString()) || []
   );
   emitToRequest(request, 'request:update', serialized);
+  if (complete) emitToAdmins('admin:refresh');
   res.json({ ok: true, request: serialized });
 }
 

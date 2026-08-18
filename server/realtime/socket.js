@@ -15,6 +15,8 @@ function roomForUser(userId) {
   return `user:${userId}`;
 }
 
+const ADMIN_ROOM = 'admins';
+
 // The room a given request's live updates broadcast to: the raising
 // hospital's room if it has one, else the raising user's room (covers
 // donor/bloodbank-raised requests). Guest-raised requests have neither, so
@@ -54,6 +56,8 @@ function initSocket(httpServer) {
       const hospital = await HospitalProfile.findOne({ userId: socket.user.id });
       if (hospital) socket.join(roomForHospital(hospital._id.toString()));
     }
+
+    if (socket.user.role === 'admin') socket.join(ADMIN_ROOM);
   });
 
   return io;
@@ -75,4 +79,13 @@ function emitToUser(userId, event, payload) {
   io.to(roomForUser(userId.toString())).emit(event, payload);
 }
 
-module.exports = { initSocket, emitToRequest, emitToUser };
+// Broadcasts a generic "something analytics-relevant changed" signal to every
+// connected admin — deliberately payload-less (see admin-insights-page.tsx),
+// so any new mutation that should move the needle can just call this instead
+// of every caller needing to know the exact shape of what changed.
+function emitToAdmins(event) {
+  if (!io) return;
+  io.to(ADMIN_ROOM).emit(event);
+}
+
+module.exports = { initSocket, emitToRequest, emitToUser, emitToAdmins };

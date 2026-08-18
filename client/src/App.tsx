@@ -9,6 +9,9 @@ const SearchPage = lazy(() => import('@/pages/search-page').then((m) => ({ defau
 const HospitalPage = lazy(() => import('@/pages/hospital-page').then((m) => ({ default: m.HospitalPage })));
 const BloodBankPage = lazy(() => import('@/pages/blood-bank-page').then((m) => ({ default: m.BloodBankPage })));
 const AdminPage = lazy(() => import('@/pages/admin-page').then((m) => ({ default: m.AdminPage })));
+const AdminInsightsPage = lazy(() =>
+  import('@/pages/admin-insights-page').then((m) => ({ default: m.AdminInsightsPage }))
+);
 const ProfilePage = lazy(() => import('@/pages/profile-page').then((m) => ({ default: m.ProfilePage })));
 const NotFoundPage = lazy(() => import('@/pages/not-found-page').then((m) => ({ default: m.NotFoundPage })));
 
@@ -43,6 +46,14 @@ function App() {
           element={withSuspense(
             <RequireRole role="admin">
               <AdminPage />
+            </RequireRole>
+          )}
+        />
+        <Route
+          path="admin/insights"
+          element={withSuspense(
+            <RequireRole role="admin">
+              <AdminInsightsPage />
             </RequireRole>
           )}
         />

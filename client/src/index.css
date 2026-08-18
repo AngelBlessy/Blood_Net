@@ -26,6 +26,17 @@
   --border: oklch(90% 0.006 80);
   --input: oklch(90% 0.006 80);
   --ring: oklch(58% 0.14 24);
+
+  /* Chart series colors — 8 evenly-spaced hues (one per blood group) at a
+     lightness/chroma tuned for readability on the light card background. */
+  --chart-1: oklch(58% 0.19 24);
+  --chart-2: oklch(62% 0.16 50);
+  --chart-3: oklch(64% 0.15 90);
+  --chart-4: oklch(58% 0.13 145);
+  --chart-5: oklch(58% 0.11 195);
+  --chart-6: oklch(56% 0.14 250);
+  --chart-7: oklch(56% 0.15 295);
+  --chart-8: oklch(58% 0.16 335);
 }
 
 .dark {
@@ -50,6 +61,17 @@
   --border: oklch(100% 0 0 / 12%);
   --input: oklch(100% 0 0 / 15%);
   --ring: oklch(67% 0.19 22);
+
+  /* Same 8 hues as :root, lifted in lightness so they read clearly against
+     the dark card background. */
+  --chart-1: oklch(70% 0.18 24);
+  --chart-2: oklch(73% 0.16 50);
+  --chart-3: oklch(76% 0.15 90);
+  --chart-4: oklch(70% 0.14 145);
+  --chart-5: oklch(70% 0.12 195);
+  --chart-6: oklch(70% 0.15 250);
+  --chart-7: oklch(70% 0.16 295);
+  --chart-8: oklch(70% 0.17 335);
 }
 
 /* Warm, low-glare palette meant to reduce eye strain during long reading sessions. */
@@ -75,6 +97,17 @@
   --border: oklch(78% 0.02 65);
   --input: oklch(78% 0.02 65);
   --ring: oklch(53% 0.14 30);
+
+  /* Same 8 hues as :root, slightly warmed/deepened to sit well on the
+     low-glare comfort background. */
+  --chart-1: oklch(54% 0.18 24);
+  --chart-2: oklch(58% 0.16 50);
+  --chart-3: oklch(60% 0.15 90);
+  --chart-4: oklch(54% 0.13 145);
+  --chart-5: oklch(54% 0.11 195);
+  --chart-6: oklch(52% 0.14 250);
+  --chart-7: oklch(52% 0.15 295);
+  --chart-8: oklch(54% 0.16 335);
 }
 
 @theme inline {
@@ -99,6 +132,15 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

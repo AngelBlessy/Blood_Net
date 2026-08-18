@@ -7,6 +7,8 @@ const router = Router();
 router.use(requireAuth, requireRole('admin'));
 
 router.get('/stats', asyncHandler(ctrl.stats));
+router.get('/analytics', asyncHandler(ctrl.analytics));
+router.get('/trends', asyncHandler(ctrl.trends));
 router.get('/hospitals/pending', asyncHandler(ctrl.pendingHospitals));
 router.post('/hospitals/:id/:decision(approve|reject)', asyncHandler(ctrl.decideHospital));
 router.get('/bloodbanks/pending', asyncHandler(ctrl.pendingBloodBanks));
