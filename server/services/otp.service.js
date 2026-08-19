@@ -62,6 +62,45 @@ async function issueOtp({ target, purpose, userId = null, email, phone }) {
   return deliveries;
 }
 
+// Builds a user-facing status message from a deliveries result, making sure a
+// failure on one channel doesn't read as total failure when the other
+// channel actually went through (e.g. SMS fails on a Twilio trial number but
+// email succeeded -- the OTP is still usable, just from the inbox).
+function describeDelivery(deliveries, { email, phone } = {}, noun = 'OTP') {
+  const emailRequested = Boolean(email);
+  const phoneRequested = Boolean(phone);
+  const emailOk = emailRequested && deliveries.email !== false;
+  const phoneOk = phoneRequested && deliveries.sms !== false;
+  const emailFailed = deliveries.email === false;
+  const phoneFailed = deliveries.sms === false;
+
+  if ((emailRequested && emailFailed && !emailOk) && (phoneRequested && phoneFailed && !phoneOk)) {
+    return { ok: false, degraded: true, message: `We couldn't send the ${noun} right now. Please try again in a moment.` };
+  }
+  if (emailRequested && phoneRequested) {
+    if (emailOk && phoneOk) {
+      return { ok: true, degraded: false, message: `Same ${noun} has been sent to your email and mobile number.` };
+    }
+    if (emailOk && phoneFailed) {
+      return {
+        ok: true,
+        degraded: true,
+        message: `The ${noun} was sent to your email — check your inbox for the code. We couldn't send it by SMS right now; use Resend to try SMS again.`,
+      };
+    }
+    if (phoneOk && emailFailed) {
+      return {
+        ok: true,
+        degraded: true,
+        message: `The ${noun} was sent to your mobile number by SMS. We couldn't send it by email right now; use Resend to try email again.`,
+      };
+    }
+  }
+  if (emailOk) return { ok: true, degraded: false, message: `${noun} sent to your email address.` };
+  if (phoneOk) return { ok: true, degraded: false, message: `${noun} sent to your mobile number.` };
+  return { ok: false, degraded: true, message: `We couldn't send the ${noun} right now. Please try again in a moment.` };
+}
+
 async function resendEligibility(target, purpose) {
   const record = await OtpToken.findOne({ target, purpose, consumed: false }).sort({ createdAt: -1 });
   if (!record) return { eligible: true };
@@ -93,4 +132,4 @@ async function verifyOtp({ target, purpose, otp }) {
   return { ok: true, userId: record.userId };
 }
 
-module.exports = { issueOtp, resendEligibility, verifyOtp };
+module.exports = { issueOtp, resendEligibility, verifyOtp, describeDelivery };

@@ -3,7 +3,7 @@ const User = require('../models/user.model');
 const DonorProfile = require('../models/donor-profile.model');
 const HospitalProfile = require('../models/hospital-profile.model');
 const BloodBankProfile = require('../models/blood-bank-profile.model');
-const { issueOtp, resendEligibility, verifyOtp } = require('../services/otp.service');
+const { issueOtp, resendEligibility, verifyOtp, describeDelivery } = require('../services/otp.service');
 const { buildUserView } = require('../services/user-view.service');
 const { signToken, setAuthCookie, clearAuthCookie } = require('../middleware/auth');
 const { BLOOD_GROUPS } = require('../constants');
@@ -21,23 +21,9 @@ function registrationTarget(email, phone) {
 async function finishRegistration(res, user, email, phone) {
   const target = registrationTarget(email, phone);
   const deliveries = await issueOtp({ target, purpose: 'register', userId: user._id, email, phone });
+  const status = describeDelivery(deliveries, { email, phone });
 
-  const failed = [];
-  if (deliveries.email === false) failed.push('email');
-  if (deliveries.sms === false) failed.push('SMS');
-
-  if (failed.length) {
-    return res.status(201).json({
-      ok: true,
-      accountCreated: true,
-      message: `We couldn't send the OTP by ${failed.join(' and ')} right now. Use Resend OTP to try again.`,
-    });
-  }
-  return res.status(201).json({
-    ok: true,
-    accountCreated: true,
-    message: 'Same OTP has been sent to your email and mobile number.',
-  });
+  return res.status(201).json({ ok: true, accountCreated: true, message: status.message });
 }
 
 async function register(req, res) {
@@ -214,19 +200,9 @@ async function requestProfileEditOtp(req, res) {
     email: user.email,
     phone: user.phone,
   });
-  const failed = [];
-  if (deliveries.email === false) failed.push('email');
-  if (deliveries.sms === false) failed.push('SMS');
-  if (failed.length) {
-    return res.json({
-      ok: true,
-      message: `We couldn't send the verification code by ${failed.join(' and ')} right now. Use Resend to try again.`,
-    });
-  }
-  return res.status(201).json({
-    ok: true,
-    message: 'Same verification code has been sent to your registered email and phone.',
-  });
+  const status = describeDelivery(deliveries, { email: user.email, phone: user.phone }, 'verification code');
+
+  return res.status(status.degraded ? 200 : 201).json({ ok: true, message: status.message });
 }
 
 async function updateMyProfile(req, res) {
