@@ -38,11 +38,10 @@ const env = {
     password: process.env.ADMIN_PASSWORD || '',
   },
 
-  smtp: {
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: Number(process.env.SMTP_PORT || 465),
-    secure: String(process.env.SMTP_SECURE || 'true') === 'true',
-    fromName: process.env.SMTP_FROM_NAME || 'Blood Donation Portal',
+  resend: {
+    apiKey: process.env.RESEND_API_KEY || '',
+    fromEmail: process.env.RESEND_FROM_EMAIL || '',
+    fromName: process.env.RESEND_FROM_NAME || 'Blood Donation Portal',
   },
 
   twilio: {
@@ -64,8 +63,13 @@ const env = {
     serviceUrl: process.env.ML_SERVICE_URL || 'http://127.0.0.1:5001',
   },
 
-  isSmtpConfigured() {
-    return Boolean(process.env.SMTP_USER) && !String(process.env.SMTP_USER).includes('your_');
+  isResendConfigured() {
+    return (
+      Boolean(process.env.RESEND_API_KEY) &&
+      !String(process.env.RESEND_API_KEY).includes('your_') &&
+      Boolean(process.env.RESEND_FROM_EMAIL) &&
+      !String(process.env.RESEND_FROM_EMAIL).includes('your_')
+    );
   },
 
   isTwilioConfigured() {

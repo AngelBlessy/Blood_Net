@@ -64,7 +64,7 @@ server/                          Express API + MongoDB (no view layer — serves
 │                                   geo.service (haversine + location parsing), certificate.service
 │                                   (PDF donation certificates via pdfkit), notification.service,
 │                                   user-view.service, blood-compatibility.service, translation.service
-│                                   (Google Cloud Translation), mailer.service (Nodemailer), sms.service (Twilio)
+│                                   (Google Cloud Translation), mailer.service (Resend), sms.service (Twilio)
 ├── jobs/                          eligibility-reminder.job (daily, donors eligible in 7 days),
 │                                   escalation.job (every 2 min: widens search radius for stalled
 │                                   requests, and progresses through ranked donors in priority tiers)
@@ -140,7 +140,7 @@ connection string).
 ```bash
 npm install              # installs server deps + client deps (postinstall hook)
 cp .env.example .env      # set MONGODB_URI, JWT_SECRET, ADMIN_EMAIL/ADMIN_PASSWORD,
-                           # and SMTP / Twilio / Google Translate keys as needed
+                           # and Resend / Twilio / Google Translate keys as needed
 npm run seed               # creates the one Admin account from ADMIN_EMAIL/ADMIN_PASSWORD
 npm run dev                # Vite dev server (5173) + Express API (3000), both live-reloading
 ```
@@ -154,7 +154,7 @@ needs a trained model first — run `npm run ml:setup && npm run ml:train` once 
 Python 3). Without a trained model, or with `ML_SERVICE_URL` unset/unreachable, donor
 ranking still works — it just uses the fallback formula instead of the real model.
 
-Without SMTP/Twilio credentials configured, the app still runs — OTP email/SMS sending
+Without Resend/Twilio credentials configured, the app still runs — OTP email/SMS sending
 fails gracefully with a clear, non-technical message in the UI, and in non-production
 the generated OTP is also printed to the server console (`[dev-otp] ...`) so
 registration/login can still be tested end to end. Without `GOOGLE_TRANSLATE_API_KEY`,
@@ -183,7 +183,9 @@ See `.env.example`. In short:
 - `JWT_SECRET` / `JWT_EXPIRES_IN` — session cookie signing.
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` — used only by `npm run seed` to create the single
   Admin account (Admin has no self-registration form).
-- `SMTP_*` — Gmail (or other SMTP) credentials for sending OTP/alert emails.
+- `RESEND_API_KEY` / `RESEND_FROM_EMAIL` / `RESEND_FROM_NAME` — [Resend](https://resend.com)
+  credentials for sending OTP/alert emails. `RESEND_FROM_EMAIL` must be on a domain
+  verified in your Resend account.
 - `TWILIO_*` — Twilio credentials for sending OTP/alert SMS. Optional; SMS features
   fail gracefully with a clear message if unset (with an OTP fallback logged to the
   server console outside production).
@@ -222,7 +224,7 @@ What makes this safe to run locally without touching anything real:
   (`mongodb-memory-server`) once for the whole run; nothing ever touches your real
   `MONGODB_URI`. Every collection is wiped between individual tests
   (`server/test/setup.js`).
-- **Email/SMS/Translate**: the same file blanks `SMTP_*`, `TWILIO_*`, and
+- **Email/SMS/Translate**: the same file blanks `RESEND_*`, `TWILIO_*`, and
   `GOOGLE_TRANSLATE_API_KEY` in `process.env` *before* `server/config/env.js` loads
   `.env` — dotenv never overwrites a variable that's already set, so this holds even if
   you have real credentials in your local `.env`. OTP flows still work end-to-end in

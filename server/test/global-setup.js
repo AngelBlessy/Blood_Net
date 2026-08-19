@@ -7,17 +7,17 @@ let mongod;
 // guaranteed to run before server/config/env.js's `dotenv.config()` call --
 // dotenv doesn't override variables that are already set in process.env, so
 // blanking these here (rather than in setup.js) is what actually stops a
-// developer's real local .env (real SMTP/Twilio/Translate credentials) from
-// being used during a test run and sending real email/SMS or billing a real
-// API key. This matters just as much for CI, where no .env file exists at
-// all -- these values would already be unset there, but the blanking keeps
-// local and CI runs behaviorally identical rather than relying on that
-// difference.
+// developer's real local .env (real Resend/Twilio/Translate credentials)
+// from being used during a test run and sending real email/SMS or billing a
+// real API key. This matters just as much for CI, where no .env file exists
+// at all -- these values would already be unset there, but the blanking
+// keeps local and CI runs behaviorally identical rather than relying on
+// that difference.
 module.exports = async function setup() {
   process.env.NODE_ENV = process.env.NODE_ENV || 'test';
   process.env.JWT_SECRET = 'test-jwt-secret-do-not-use-outside-tests';
-  process.env.SMTP_USER = '';
-  process.env.SMTP_PASS = '';
+  process.env.RESEND_API_KEY = '';
+  process.env.RESEND_FROM_EMAIL = '';
   process.env.TWILIO_ACCOUNT_SID = '';
   process.env.TWILIO_AUTH_TOKEN = '';
   process.env.TWILIO_FROM_NUMBER = '';

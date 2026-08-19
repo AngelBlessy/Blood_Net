@@ -54,7 +54,7 @@ async function issueOtp({ target, purpose, userId = null, email, phone }) {
     }
   }
 
-  // Dev fallback so the flow is usable without live SMTP/Twilio credentials.
+  // Dev fallback so the flow is usable without live Resend/Twilio credentials.
   if (env.nodeEnv !== 'production' && (deliveries.email === false || deliveries.sms === false || (!email && !phone))) {
     console.log(`[dev-otp] ${purpose} OTP for ${target}: ${otp}`);
   }

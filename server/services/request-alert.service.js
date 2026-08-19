@@ -96,7 +96,7 @@ async function notifyDonorsForRequest(request, options = {}) {
       ]);
       // In-app notification (bell + live socket push) — independent of
       // whether email/SMS delivery actually succeeded, since this is the
-      // channel that works even without SMTP/Twilio configured.
+      // channel that works even without Resend/Twilio configured.
       notifyUser(
         user._id,
         `${request.bloodGroup} blood needed nearby`,

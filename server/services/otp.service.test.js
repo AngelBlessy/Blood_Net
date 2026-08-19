@@ -1,7 +1,7 @@
 const { issueOtp, resendEligibility, verifyOtp } = require('./otp.service');
 const OtpToken = require('../models/otp-token.model');
 
-// SMTP/Twilio are blanked in the test environment (see global-setup.js), so
+// Resend/Twilio are blanked in the test environment (see global-setup.js), so
 // issueOtp's real delivery attempts fail and it falls through to the
 // dev-otp console fallback -- these tests read the OTP straight out of the
 // database instead (it's only ever stored as a bcrypt hash, so this reaches

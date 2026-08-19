@@ -47,7 +47,7 @@ describe('donor profile edit (OTP-gated)', () => {
     const { cookie } = await donorCookie();
 
     const otp = await captureDevOtp(async () => {
-      // 200, not 201: SMTP/Twilio are unconfigured in this test environment
+      // 200, not 201: Resend/Twilio are unconfigured in this test environment
       // (see global-setup.js), so delivery "fails" and the controller falls
       // through to its non-201 branch -- the OTP is still issued either way,
       // which is exactly the dev-otp fallback this test relies on.

@@ -1,11 +1,4 @@
 function toDeliveryError(error) {
-  const message = String(error.message || '');
-  if (message.includes('535')) {
-    return {
-      status: 500,
-      message: 'Gmail rejected the SMTP login. Use a Gmail App Password in SMTP_PASS, not your normal Gmail password.',
-    };
-  }
   if (error.code === 21211) {
     return { status: 400, message: 'The mobile number is invalid. Enter a valid 10-digit Indian mobile number.' };
   }
