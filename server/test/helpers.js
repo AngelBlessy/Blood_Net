@@ -73,6 +73,7 @@ async function createHospital(overrides = {}) {
     state: overrides.state ?? null,
     contactNumber: overrides.contactNumber || user.phone,
     approvalStatus: overrides.approvalStatus || 'approved',
+    rejectionReason: overrides.rejectionReason ?? null,
     ...(overrides.location ? { location: overrides.location } : {}),
   });
   return { user, profile, password: password || DEFAULT_PASSWORD };
@@ -84,11 +85,13 @@ async function createBloodBank(overrides = {}) {
   const profile = await BloodBankProfile.create({
     userId: user._id,
     bankName: overrides.bankName || 'Test Blood Bank',
+    licenseNumber: overrides.licenseNumber || 'BANK-LIC-1234',
     address: overrides.address || '2 Main St',
     city: overrides.city || 'Testville',
     state: overrides.state ?? null,
     contactNumber: overrides.contactNumber || user.phone,
     approvalStatus: overrides.approvalStatus || 'approved',
+    rejectionReason: overrides.rejectionReason ?? null,
     ...(overrides.location ? { location: overrides.location } : {}),
   });
   return { user, profile, password: password || DEFAULT_PASSWORD };

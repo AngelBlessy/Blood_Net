@@ -11,6 +11,7 @@ import { registerSchema, ROLE_OPTIONS, type RegisterInput, type RegisterValues }
 import type { useRegistration } from './use-registration';
 import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
 import { useGeolocation } from '@/hooks/use-geolocation';
+import { useRestrictedInput } from '@/hooks/use-restricted-input';
 import { MapPin } from 'lucide-react';
 
 interface RegisterFormProps {
@@ -38,6 +39,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
       bloodGroup: undefined,
       hospitalName: '',
       licenseNumber: '',
+      licenseDocument: undefined,
       bankName: '',
       contactNumber: '',
       address: '',
@@ -49,6 +51,12 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
   const role = form.watch('role');
   const donatedEver = form.watch('donatedEver');
   const hasCoordinates = form.watch('lat') !== undefined && form.watch('lng') !== undefined;
+
+  const nameGuard = useRestrictedInput('alpha');
+  const cityGuard = useRestrictedInput('alpha');
+  const stateGuard = useRestrictedInput('alpha');
+  const phoneGuard = useRestrictedInput('numeric');
+  const contactNumberGuard = useRestrictedInput('numeric');
 
   async function handleUseLocation() {
     const coords = await requestLocation();
@@ -75,7 +83,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="role"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('registeringAsLabel')}</FormLabel>
+              <FormLabel required>{t('registeringAsLabel')}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -102,10 +110,17 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('fieldName')}</FormLabel>
+                  <FormLabel required>{t('fieldName')}</FormLabel>
                   <FormControl>
-                    <Input placeholder={t('namePlaceholder')} autoComplete="name" {...field} />
+                    <Input
+                      placeholder={t('namePlaceholder')}
+                      autoComplete="name"
+                      {...field}
+                      onKeyDown={nameGuard.onKeyDown}
+                      onPaste={nameGuard.onPaste}
+                    />
                   </FormControl>
+                  {nameGuard.warning && <p className="text-xs text-destructive">{nameGuard.warning}</p>}
                   <FormMessage />
                 </FormItem>
               )}
@@ -116,10 +131,16 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldCity')}</FormLabel>
+                    <FormLabel required>{t('fieldCity')}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t('cityPlaceholder')} {...field} />
+                      <Input
+                        placeholder={t('cityPlaceholder')}
+                        {...field}
+                        onKeyDown={cityGuard.onKeyDown}
+                        onPaste={cityGuard.onPaste}
+                      />
                     </FormControl>
+                    {cityGuard.warning && <p className="text-xs text-destructive">{cityGuard.warning}</p>}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -129,10 +150,16 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
                 name="state"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldState')}</FormLabel>
+                    <FormLabel required>{t('fieldState')}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t('statePlaceholder')} {...field} />
+                      <Input
+                        placeholder={t('statePlaceholder')}
+                        {...field}
+                        onKeyDown={stateGuard.onKeyDown}
+                        onPaste={stateGuard.onPaste}
+                      />
                     </FormControl>
+                    {stateGuard.warning && <p className="text-xs text-destructive">{stateGuard.warning}</p>}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -142,34 +169,19 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
         )}
 
         {role === 'hospital' && (
-          <>
-            <FormField
-              control={form.control}
-              name="hospitalName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('fieldHospitalName')}</FormLabel>
-                  <FormControl>
-                    <Input placeholder={t('hospitalNamePlaceholder')} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="licenseNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('fieldLicenseNumber')}</FormLabel>
-                  <FormControl>
-                    <Input placeholder={t('licenseNumberPlaceholder')} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </>
+          <FormField
+            control={form.control}
+            name="hospitalName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel required>{t('fieldHospitalName')}</FormLabel>
+                <FormControl>
+                  <Input placeholder={t('hospitalNamePlaceholder')} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         )}
 
         {role === 'bloodbank' && (
@@ -178,7 +190,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
             name="bankName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('fieldBankName')}</FormLabel>
+                <FormLabel required>{t('fieldBankName')}</FormLabel>
                 <FormControl>
                   <Input placeholder={t('bankNamePlaceholder')} {...field} />
                 </FormControl>
@@ -186,6 +198,47 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
               </FormItem>
             )}
           />
+        )}
+
+        {(role === 'hospital' || role === 'bloodbank') && (
+          <>
+            <FormField
+              control={form.control}
+              name="licenseNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel required>{t('fieldLicenseNumber')}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={t('licenseNumberPlaceholder')} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="licenseDocument"
+              render={({ field: { value, onChange, ref, name, onBlur } }) => (
+                <FormItem>
+                  <FormLabel required>{t('fieldLicenseDocument')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png"
+                      name={name}
+                      ref={ref}
+                      onBlur={onBlur}
+                      onChange={(e) => onChange(e.target.files?.[0])}
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    {value ? t('licenseDocumentSelectedLabel', { name: value.name }) : t('licenseDocumentHint')}
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </>
         )}
 
         {(role === 'hospital' || role === 'bloodbank') && (
@@ -210,8 +263,14 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
                 <FormItem>
                   <FormLabel>{t('fieldCity')}</FormLabel>
                   <FormControl>
-                    <Input placeholder={t('cityPlaceholder')} {...field} />
+                    <Input
+                      placeholder={t('cityPlaceholder')}
+                      {...field}
+                      onKeyDown={cityGuard.onKeyDown}
+                      onPaste={cityGuard.onPaste}
+                    />
                   </FormControl>
+                  {cityGuard.warning && <p className="text-xs text-destructive">{cityGuard.warning}</p>}
                   <FormMessage />
                 </FormItem>
               )}
@@ -221,10 +280,16 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
               name="state"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('fieldState')}</FormLabel>
+                  <FormLabel required>{t('fieldState')}</FormLabel>
                   <FormControl>
-                    <Input placeholder={t('statePlaceholder')} {...field} />
+                    <Input
+                      placeholder={t('statePlaceholder')}
+                      {...field}
+                      onKeyDown={stateGuard.onKeyDown}
+                      onPaste={stateGuard.onPaste}
+                    />
                   </FormControl>
+                  {stateGuard.warning && <p className="text-xs text-destructive">{stateGuard.warning}</p>}
                   <FormMessage />
                 </FormItem>
               )}
@@ -248,7 +313,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
               name="age"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('fieldAge')}</FormLabel>
+                  <FormLabel required>{t('fieldAge')}</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -269,7 +334,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
             name="phone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('fieldContactNo')}</FormLabel>
+                <FormLabel required>{t('fieldContactNo')}</FormLabel>
                 <FormControl>
                   <Input
                     type="tel"
@@ -278,8 +343,11 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
                     placeholder={t('phonePlaceholder')}
                     autoComplete="tel"
                     {...field}
+                    onKeyDown={phoneGuard.onKeyDown}
+                    onPaste={phoneGuard.onPaste}
                   />
                 </FormControl>
+                {phoneGuard.warning && <p className="text-xs text-destructive">{phoneGuard.warning}</p>}
                 <FormMessage />
               </FormItem>
             )}
@@ -291,7 +359,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('fieldEmail')}</FormLabel>
+              <FormLabel required>{t('fieldEmail')}</FormLabel>
               <FormControl>
                 <Input type="email" placeholder={t('emailAddressPlaceholder')} autoComplete="email" {...field} />
               </FormControl>
@@ -305,7 +373,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('fieldPassword')}</FormLabel>
+              <FormLabel required>{t('fieldPassword')}</FormLabel>
               <FormControl>
                 <PasswordInput placeholder={t('createPasswordPlaceholder')} autoComplete="new-password" {...field} />
               </FormControl>
@@ -319,7 +387,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('fieldConfirmPassword')}</FormLabel>
+              <FormLabel required>{t('fieldConfirmPassword')}</FormLabel>
               <FormControl>
                 <PasswordInput placeholder={t('confirmPasswordPlaceholder')} autoComplete="new-password" {...field} />
               </FormControl>
@@ -335,7 +403,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
               name="donatedEver"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('fieldDonatedEver')}</FormLabel>
+                  <FormLabel required>{t('fieldDonatedEver')}</FormLabel>
                   <FormControl>
                     <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-6">
                       <label className="flex items-center gap-2 text-sm">
@@ -357,7 +425,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
                 name="lastDonationDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldLastDonationDate')}</FormLabel>
+                    <FormLabel required>{t('fieldLastDonationDate')}</FormLabel>
                     <FormControl>
                       <Input type="date" max={today} {...field} />
                     </FormControl>
@@ -372,7 +440,7 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
               name="bloodGroup"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('fieldBloodGroup')}</FormLabel>
+                  <FormLabel required>{t('fieldBloodGroup')}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger className="w-full">
@@ -402,8 +470,14 @@ export function RegisterForm({ submitRegistration, onOtpSent }: RegisterFormProp
               <FormItem>
                 <FormLabel>{t('fieldBankContactNumber')}</FormLabel>
                 <FormControl>
-                  <Input placeholder={t('bankContactNumberPlaceholder')} {...field} />
+                  <Input
+                    placeholder={t('bankContactNumberPlaceholder')}
+                    {...field}
+                    onKeyDown={contactNumberGuard.onKeyDown}
+                    onPaste={contactNumberGuard.onPaste}
+                  />
                 </FormControl>
+                {contactNumberGuard.warning && <p className="text-xs text-destructive">{contactNumberGuard.warning}</p>}
                 <FormMessage />
               </FormItem>
             )}

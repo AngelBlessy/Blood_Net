@@ -5,8 +5,12 @@ const DonorProfile = require('../models/donor-profile.model');
 const BloodRequest = require('../models/blood-request.model');
 const BloodInventory = require('../models/blood-inventory.model');
 const Donation = require('../models/donation.model');
+const ApprovalDecision = require('../models/approval-decision.model');
 const { BLOOD_GROUPS, REQUEST_PRIORITIES } = require('../constants');
 const { emitToAdmins } = require('../realtime/socket');
+const { notifyUser } = require('../services/notification.service');
+
+const APPROVAL_HISTORY_LIMIT = 100;
 
 const LOW_STOCK_THRESHOLD = 5;
 const MANAGEABLE_ROLES = ['donor', 'hospital', 'bloodbank'];
@@ -46,11 +50,20 @@ async function stats(_req, res) {
   res.json({ donorCount, openRequests, lowStockGroups, inventory });
 }
 
+// Never include licenseDocument.data here -- that's the raw file bytes,
+// only needed server-side by the download route, which re-derives it from
+// the DB record by profile id rather than trusting anything from the client.
+function serializeLicenseDocument(doc) {
+  if (!doc) return null;
+  return { originalName: doc.originalName, mimeType: doc.mimeType, size: doc.size, uploadedAt: doc.uploadedAt };
+}
+
 function serializeHospital(profile) {
   return {
     id: profile._id.toString(),
     hospitalName: profile.hospitalName,
     licenseNumber: profile.licenseNumber,
+    licenseDocument: serializeLicenseDocument(profile.licenseDocument),
     address: profile.address,
     city: profile.city,
     approvalStatus: profile.approvalStatus,
@@ -63,6 +76,8 @@ function serializeBloodBank(profile) {
   return {
     id: profile._id.toString(),
     bankName: profile.bankName,
+    licenseNumber: profile.licenseNumber,
+    licenseDocument: serializeLicenseDocument(profile.licenseDocument),
     address: profile.address,
     city: profile.city,
     contactNumber: profile.contactNumber,
@@ -77,12 +92,53 @@ async function pendingHospitals(_req, res) {
   res.json({ hospitals: hospitals.map(serializeHospital) });
 }
 
+// Records the decision in the audit log and pushes a notification to the
+// affected account -- shared by decideHospital/decideBloodBank since the
+// logic is identical apart from which model/role it's operating on.
+async function recordApprovalDecision({ req, role, profile, approvalStatus, reason, entityName, notifyTitle, notifyMessage }) {
+  const admin = await User.findById(req.user.id);
+  await ApprovalDecision.create({
+    role,
+    profileId: profile._id,
+    entityName,
+    decision: approvalStatus === 'approved' ? 'approved' : 'rejected',
+    reason: reason || null,
+    decidedBy: req.user.id,
+    decidedByEmail: admin?.email || 'unknown',
+  });
+  if (profile.userId?._id) {
+    notifyUser(profile.userId._id, notifyTitle, notifyMessage);
+  }
+}
+
 async function decideHospital(req, res) {
   const approvalStatus = req.params.decision === 'approve' ? 'approved' : 'rejected';
-  const hospital = await HospitalProfile.findByIdAndUpdate(req.params.id, { approvalStatus }, { new: true }).populate(
-    'userId'
-  );
+  const reason = String(req.body?.reason || '').trim();
+  if (approvalStatus === 'rejected' && !reason) {
+    return res.status(400).json({ error: 'Enter a reason for rejecting this account.' });
+  }
+
+  const hospital = await HospitalProfile.findByIdAndUpdate(
+    req.params.id,
+    { approvalStatus, rejectionReason: approvalStatus === 'rejected' ? reason : null },
+    { new: true }
+  ).populate('userId');
   if (!hospital) return res.status(404).json({ error: 'Hospital not found.' });
+
+  await recordApprovalDecision({
+    req,
+    role: 'hospital',
+    profile: hospital,
+    approvalStatus,
+    reason,
+    entityName: hospital.hospitalName,
+    notifyTitle: approvalStatus === 'approved' ? 'Account approved' : 'Account rejected',
+    notifyMessage:
+      approvalStatus === 'approved'
+        ? 'Your hospital account has been approved. You can now log in.'
+        : `Your hospital account was rejected: ${reason}. You can update your details and resubmit for review.`,
+  });
+
   emitToAdmins('admin:refresh');
   res.json({ ok: true, hospital: serializeHospital(hospital) });
 }
@@ -94,12 +150,72 @@ async function pendingBloodBanks(_req, res) {
 
 async function decideBloodBank(req, res) {
   const approvalStatus = req.params.decision === 'approve' ? 'approved' : 'rejected';
-  const bank = await BloodBankProfile.findByIdAndUpdate(req.params.id, { approvalStatus }, { new: true }).populate(
-    'userId'
-  );
+  const reason = String(req.body?.reason || '').trim();
+  if (approvalStatus === 'rejected' && !reason) {
+    return res.status(400).json({ error: 'Enter a reason for rejecting this account.' });
+  }
+
+  const bank = await BloodBankProfile.findByIdAndUpdate(
+    req.params.id,
+    { approvalStatus, rejectionReason: approvalStatus === 'rejected' ? reason : null },
+    { new: true }
+  ).populate('userId');
   if (!bank) return res.status(404).json({ error: 'Blood bank not found.' });
+
+  await recordApprovalDecision({
+    req,
+    role: 'bloodbank',
+    profile: bank,
+    approvalStatus,
+    reason,
+    entityName: bank.bankName,
+    notifyTitle: approvalStatus === 'approved' ? 'Account approved' : 'Account rejected',
+    notifyMessage:
+      approvalStatus === 'approved'
+        ? 'Your blood bank account has been approved. You can now log in.'
+        : `Your blood bank account was rejected: ${reason}. You can update your details and resubmit for review.`,
+  });
+
   emitToAdmins('admin:refresh');
   res.json({ ok: true, bloodBank: serializeBloodBank(bank) });
+}
+
+async function getApprovalHistory(req, res) {
+  const limit = Math.min(Number(req.query?.limit) || APPROVAL_HISTORY_LIMIT, APPROVAL_HISTORY_LIMIT);
+  const decisions = await ApprovalDecision.find({}).sort({ createdAt: -1 }).limit(limit);
+  res.json({
+    decisions: decisions.map((decision) => ({
+      id: decision._id.toString(),
+      role: decision.role,
+      entityName: decision.entityName,
+      decision: decision.decision,
+      reason: decision.reason,
+      decidedByEmail: decision.decidedByEmail,
+      createdAt: decision.createdAt,
+    })),
+  });
+}
+
+// Streams an uploaded license/registration document to an admin. The bytes
+// live directly on the profile document in MongoDB (see
+// license-document.schema.js) -- nothing here touches the filesystem.
+function streamLicenseDocument(res, doc) {
+  if (!doc || !doc.data) return res.status(404).json({ error: 'No document was uploaded for this account.' });
+  res.setHeader('Content-Type', doc.mimeType);
+  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(doc.originalName)}"`);
+  res.send(doc.data);
+}
+
+async function getHospitalLicenseDocument(req, res) {
+  const hospital = await HospitalProfile.findById(req.params.id);
+  if (!hospital) return res.status(404).json({ error: 'Hospital not found.' });
+  return streamLicenseDocument(res, hospital.licenseDocument);
+}
+
+async function getBloodBankLicenseDocument(req, res) {
+  const bank = await BloodBankProfile.findById(req.params.id);
+  if (!bank) return res.status(404).json({ error: 'Blood bank not found.' });
+  return streamLicenseDocument(res, bank.licenseDocument);
 }
 
 function escapeRegex(value) {
@@ -145,6 +261,15 @@ async function listUsers(req, res) {
     const id = user._id.toString();
     let name = null;
     let city = null;
+    // Only hospital/bloodbank carry a separate approval workflow -- donor
+    // accounts have nothing to approve beyond OTP verification, which
+    // `status` already reflects. approvalId is the HospitalProfile/
+    // BloodBankProfile _id -- the approve/reject/license-document routes key
+    // off that, NOT the User _id, so it has to travel separately from `id`.
+    let approvalStatus = null;
+    let rejectionReason = null;
+    let approvalId = null;
+    let licenseDocument = null;
     if (user.role === 'donor') {
       const profile = donorMap.get(id);
       name = profile?.name ?? null;
@@ -153,10 +278,18 @@ async function listUsers(req, res) {
       const profile = hospitalMap.get(id);
       name = profile?.hospitalName ?? null;
       city = profile?.city ?? null;
+      approvalStatus = profile?.approvalStatus ?? null;
+      rejectionReason = profile?.rejectionReason ?? null;
+      approvalId = profile?._id.toString() ?? null;
+      licenseDocument = serializeLicenseDocument(profile?.licenseDocument);
     } else if (user.role === 'bloodbank') {
       const profile = bankMap.get(id);
       name = profile?.bankName ?? null;
       city = profile?.city ?? null;
+      approvalStatus = profile?.approvalStatus ?? null;
+      rejectionReason = profile?.rejectionReason ?? null;
+      approvalId = profile?._id.toString() ?? null;
+      licenseDocument = serializeLicenseDocument(profile?.licenseDocument);
     }
     return {
       id,
@@ -166,6 +299,12 @@ async function listUsers(req, res) {
       email: user.email,
       phone: user.phone,
       status: user.status,
+      approvalStatus,
+      rejectionReason,
+      approvalId,
+      licenseDocument,
+      reactivationRequestedAt: user.reactivationRequestedAt,
+      suspensionReason: user.suspensionReason,
       createdAt: user.createdAt,
     };
   });
@@ -183,8 +322,27 @@ async function setUserStatus(req, res) {
     return res.status(403).json({ error: 'This account cannot be managed here.' });
   }
 
-  user.status = req.params.action === 'suspend' ? 'suspended' : 'active';
+  const suspending = req.params.action === 'suspend';
+  const reason = String(req.body?.reason || '').trim();
+  if (suspending && !reason) {
+    return res.status(400).json({ error: 'Enter a reason for suspending this account.' });
+  }
+
+  user.status = suspending ? 'suspended' : 'active';
+  user.suspensionReason = suspending ? reason : null;
+  // Whatever the admin decided, the pending reactivation request (if any) has
+  // now been reviewed -- clear it so it stops showing as outstanding.
+  user.reactivationRequestedAt = null;
   await user.save();
+
+  notifyUser(
+    user._id,
+    suspending ? 'Account suspended' : 'Account reactivated',
+    suspending
+      ? `Your account has been suspended by the admin: ${reason}`
+      : 'Your account has been reactivated. You can now log in.'
+  );
+
   emitToAdmins('admin:refresh');
   res.json({ ok: true, id: user._id.toString(), status: user.status });
 }
@@ -376,8 +534,11 @@ module.exports = {
   trends,
   pendingHospitals,
   decideHospital,
+  getHospitalLicenseDocument,
   pendingBloodBanks,
   decideBloodBank,
+  getBloodBankLicenseDocument,
+  getApprovalHistory,
   listUsers,
   setUserStatus,
 };

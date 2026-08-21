@@ -1,8 +1,14 @@
 import { z } from 'zod';
 import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
 
+const NAME_PATTERN = /^[A-Za-z\s]+$/;
+
 export const guestRequestSchema = z.object({
-  name: z.string().trim().min(2, 'Enter your name.'),
+  name: z
+    .string()
+    .trim()
+    .min(2, 'Enter your name.')
+    .regex(NAME_PATTERN, 'Name can only contain letters and spaces.'),
   phone: z
     .string()
     .trim()

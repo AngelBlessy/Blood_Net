@@ -24,7 +24,9 @@ import { ProfileOtpSection } from './profile-otp-section';
 import { useSessionStore } from '@/store/session-store';
 import { useProfileEditOtp } from '@/hooks/use-profile-edit-otp';
 import { useGeolocation } from '@/hooks/use-geolocation';
-import { apiPatch, apiErrorMessage } from '@/lib/api';
+import { useRestrictedInput } from '@/hooks/use-restricted-input';
+import { apiPatch, apiPatchForm, apiErrorMessage } from '@/lib/api';
+import { toFormData } from '@/lib/to-form-data';
 import type { HospitalUser, User } from '@/types/domain';
 import { MapPin } from 'lucide-react';
 
@@ -42,6 +44,7 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
   const defaults = {
     hospitalName: hospital.hospitalName,
     licenseNumber: hospital.licenseNumber,
+    licenseDocument: undefined,
     address: hospital.address ?? '',
     city: hospital.city ?? '',
     state: hospital.state ?? '',
@@ -59,6 +62,11 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
   });
 
   const hasCoordinates = form.watch('lat') !== undefined && form.watch('lng') !== undefined;
+
+  const cityGuard = useRestrictedInput('alpha');
+  const stateGuard = useRestrictedInput('alpha');
+  const contactNumberGuard = useRestrictedInput('numeric');
+  const phoneGuard = useRestrictedInput('numeric');
 
   async function handleUseLocation() {
     const coords = await requestLocation();
@@ -78,7 +86,9 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
 
   async function onSubmit(values: EditHospitalProfileValues) {
     try {
-      const data = await apiPatch<{ ok: boolean; user: User }>('/auth/me/profile', values);
+      const data = values.licenseDocument
+        ? await apiPatchForm<{ ok: boolean; user: User }>('/auth/me/profile', toFormData(values))
+        : await apiPatch<{ ok: boolean; user: User }>('/auth/me/profile', values);
       setUser(data.user);
       toast.success(t('toastProfileUpdated'));
       handleOpenChange(false);
@@ -107,7 +117,7 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
               name="hospitalName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('fieldHospitalNameLabel')}</FormLabel>
+                  <FormLabel required>{t('fieldHospitalNameLabel')}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -121,10 +131,34 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
               name="licenseNumber"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('fieldLicenseNumberLabel')}</FormLabel>
+                  <FormLabel required>{t('fieldLicenseNumberLabel')}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="licenseDocument"
+              render={({ field: { value, onChange, ref, name, onBlur } }) => (
+                <FormItem>
+                  <FormLabel>{t('fieldLicenseDocument')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="file"
+                      accept="application/pdf,image/jpeg,image/png"
+                      name={name}
+                      ref={ref}
+                      onBlur={onBlur}
+                      onChange={(e) => onChange(e.target.files?.[0])}
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    {value ? t('licenseDocumentSelectedLabel', { name: value.name }) : t('licenseDocumentReplaceHint')}
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -151,8 +185,9 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
                   <FormItem>
                     <FormLabel>{t('fieldCityLabel')}</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input {...field} onKeyDown={cityGuard.onKeyDown} onPaste={cityGuard.onPaste} />
                     </FormControl>
+                    {cityGuard.warning && <p className="text-xs text-destructive">{cityGuard.warning}</p>}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -166,8 +201,14 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
                 <FormItem>
                   <FormLabel>{t('fieldState')}</FormLabel>
                   <FormControl>
-                    <Input placeholder={t('statePlaceholder')} {...field} />
+                    <Input
+                      placeholder={t('statePlaceholder')}
+                      {...field}
+                      onKeyDown={stateGuard.onKeyDown}
+                      onPaste={stateGuard.onPaste}
+                    />
                   </FormControl>
+                  {stateGuard.warning && <p className="text-xs text-destructive">{stateGuard.warning}</p>}
                   <FormMessage />
                 </FormItem>
               )}
@@ -196,8 +237,16 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
                 <FormItem>
                   <FormLabel>{t('fieldContactNumberLabel')}</FormLabel>
                   <FormControl>
-                    <Input type="tel" inputMode="numeric" maxLength={10} {...field} />
+                    <Input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      {...field}
+                      onKeyDown={contactNumberGuard.onKeyDown}
+                      onPaste={contactNumberGuard.onPaste}
+                    />
                   </FormControl>
+                  {contactNumberGuard.warning && <p className="text-xs text-destructive">{contactNumberGuard.warning}</p>}
                   <FormMessage />
                 </FormItem>
               )}
@@ -209,7 +258,7 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldEmailLabel')}</FormLabel>
+                    <FormLabel required>{t('fieldEmailLabel')}</FormLabel>
                     <FormControl>
                       <Input type="email" autoComplete="email" {...field} />
                     </FormControl>
@@ -222,10 +271,19 @@ export function EditHospitalProfileDialog({ hospital }: EditHospitalProfileDialo
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldLoginPhoneLabel')}</FormLabel>
+                    <FormLabel required>{t('fieldLoginPhoneLabel')}</FormLabel>
                     <FormControl>
-                      <Input type="tel" inputMode="numeric" maxLength={10} autoComplete="tel" {...field} />
+                      <Input
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        autoComplete="tel"
+                        {...field}
+                        onKeyDown={phoneGuard.onKeyDown}
+                        onPaste={phoneGuard.onPaste}
+                      />
                     </FormControl>
+                    {phoneGuard.warning && <p className="text-xs text-destructive">{phoneGuard.warning}</p>}
                     <FormMessage />
                   </FormItem>
                 )}

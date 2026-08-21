@@ -117,12 +117,36 @@ describe('Hospital and blood bank approvals', () => {
     expect(updated.approvalStatus).toBe('approved');
   });
 
-  it('rejecting a hospital sets approvalStatus to rejected', async () => {
+  it('rejecting a hospital requires a reason', async () => {
     const { profile } = await createHospital({ approvalStatus: 'pending' });
     const cookie = await adminCookie();
 
     const response = await agent().post(`/api/admin/hospitals/${profile._id}/reject`).set('Cookie', cookie);
+    expect(response.status).toBe(400);
+  });
+
+  it('rejecting a hospital with a reason sets approvalStatus, stores the reason, and logs an approval decision', async () => {
+    const { profile } = await createHospital({ approvalStatus: 'pending' });
+    const cookie = await adminCookie();
+
+    const response = await agent()
+      .post(`/api/admin/hospitals/${profile._id}/reject`)
+      .set('Cookie', cookie)
+      .send({ reason: 'License number does not match the uploaded document.' });
+    expect(response.status).toBe(200);
     expect(response.body.hospital.approvalStatus).toBe('rejected');
+
+    const updated = await HospitalProfile.findById(profile._id);
+    expect(updated.approvalStatus).toBe('rejected');
+    expect(updated.rejectionReason).toBe('License number does not match the uploaded document.');
+
+    const historyResponse = await agent().get('/api/admin/approval-history').set('Cookie', cookie);
+    expect(historyResponse.status).toBe(200);
+    const entry = historyResponse.body.decisions.find((d) => d.entityName === profile.hospitalName);
+    expect(entry).toBeTruthy();
+    expect(entry.decision).toBe('rejected');
+    expect(entry.reason).toBe('License number does not match the uploaded document.');
+    expect(entry.createdAt).toBeTruthy();
   });
 
   it('returns 404 for a hospital id that does not exist', async () => {
@@ -200,6 +224,55 @@ describe('GET /api/admin/users', () => {
     const response = await agent().get('/api/admin/users').set('Cookie', cookie);
     expect(response.body.users.every((entry) => entry.role !== 'admin')).toBe(true);
   });
+
+  it('surfaces a suspended user\'s reactivation request, and clears it once an admin acts on it', async () => {
+    const { user, password } = await createDonor({ status: 'suspended' });
+    const cookie = await adminCookie();
+
+    await agent().post('/api/auth/request-reactivation').send({ email: user.email });
+
+    const before = await agent().get('/api/admin/users').set('Cookie', cookie);
+    const beforeEntry = before.body.users.find((entry) => entry.id === user._id.toString());
+    expect(beforeEntry.reactivationRequestedAt).toBeTruthy();
+
+    await agent().post(`/api/admin/users/${user._id}/activate`).set('Cookie', cookie);
+
+    const after = await agent().get('/api/admin/users').set('Cookie', cookie);
+    const afterEntry = after.body.users.find((entry) => entry.id === user._id.toString());
+    expect(afterEntry.reactivationRequestedAt).toBeNull();
+
+    const loginResponse = await agent().post('/api/auth/login').send({ email: user.email, password });
+    expect(loginResponse.status).toBe(200);
+  });
+
+  it('surfaces a hospital\'s approval status and rejection reason', async () => {
+    const { user } = await createHospital({ approvalStatus: 'rejected', rejectionReason: 'Bad license number.' });
+    const cookie = await adminCookie();
+
+    const response = await agent().get('/api/admin/users').set('Cookie', cookie);
+    const entry = response.body.users.find((item) => item.id === user._id.toString());
+    expect(entry.approvalStatus).toBe('rejected');
+    expect(entry.rejectionReason).toBe('Bad license number.');
+  });
+
+  it('lists a separate approvalId (the profile id) distinct from the user id, and it actually works against the approve endpoint', async () => {
+    const { user, profile } = await createHospital({ approvalStatus: 'pending' });
+    const cookie = await adminCookie();
+
+    const response = await agent().get('/api/admin/users').set('Cookie', cookie);
+    const entry = response.body.users.find((item) => item.id === user._id.toString());
+    expect(entry.approvalId).toBe(profile._id.toString());
+    expect(entry.approvalId).not.toBe(entry.id);
+
+    // Regression check: approving via entry.id (the User id) must NOT work --
+    // this is the exact mistake that caused "Hospital not found" in the UI.
+    const wrongIdAttempt = await agent().post(`/api/admin/hospitals/${entry.id}/approve`).set('Cookie', cookie);
+    expect(wrongIdAttempt.status).toBe(404);
+
+    const correctAttempt = await agent().post(`/api/admin/hospitals/${entry.approvalId}/approve`).set('Cookie', cookie);
+    expect(correctAttempt.status).toBe(200);
+    expect(correctAttempt.body.hospital.approvalStatus).toBe('approved');
+  });
 });
 
 describe('POST /api/admin/users/:id/suspend and /activate', () => {
@@ -207,18 +280,30 @@ describe('POST /api/admin/users/:id/suspend and /activate', () => {
     const { user, password } = await createDonor();
     const cookie = await adminCookie();
 
-    const suspendResponse = await agent().post(`/api/admin/users/${user._id}/suspend`).set('Cookie', cookie);
+    const suspendResponse = await agent()
+      .post(`/api/admin/users/${user._id}/suspend`)
+      .set('Cookie', cookie)
+      .send({ reason: 'Multiple reports of no-show donations.' });
     expect(suspendResponse.status).toBe(200);
     expect(suspendResponse.body.status).toBe('suspended');
 
     const blockedLogin = await agent().post('/api/auth/login').send({ email: user.email, password });
     expect(blockedLogin.status).toBe(403);
+    expect(blockedLogin.body.error).toMatch(/Multiple reports of no-show donations\./);
 
     const activateResponse = await agent().post(`/api/admin/users/${user._id}/activate`).set('Cookie', cookie);
     expect(activateResponse.body.status).toBe('active');
 
     const restoredLogin = await agent().post('/api/auth/login').send({ email: user.email, password });
     expect(restoredLogin.status).toBe(200);
+  });
+
+  it('requires a reason to suspend', async () => {
+    const { user } = await createDonor();
+    const cookie = await adminCookie();
+
+    const response = await agent().post(`/api/admin/users/${user._id}/suspend`).set('Cookie', cookie);
+    expect(response.status).toBe(400);
   });
 
   it('refuses to manage an admin account', async () => {

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RegisterValues } from './schemas';
 import type { FlowResult } from './types';
-import { apiPost, apiErrorMessage } from '@/lib/api';
+import { apiPost, apiPostForm, apiErrorMessage } from '@/lib/api';
+import { toFormData } from '@/lib/to-form-data';
 
 const OTP_VALIDITY_MS = 10 * 60 * 1000;
 const OTP_RESEND_DELAY_MS = 30 * 1000;
@@ -27,7 +28,12 @@ export function useRegistration() {
     const phone = values.phone.trim();
 
     try {
-      const result = await apiPost<{ ok: boolean; message: string }>('/auth/register', values);
+      // Hospital/bloodbank carry a license document, so those roles submit as
+      // multipart/form-data; donor registration has no file and stays JSON.
+      const result =
+        values.role === 'hospital' || values.role === 'bloodbank'
+          ? await apiPostForm<{ ok: boolean; message: string }>('/auth/register', toFormData(values))
+          : await apiPost<{ ok: boolean; message: string }>('/auth/register', values);
       setPending({ email, phone, expiresAt: Date.now() + OTP_VALIDITY_MS, resendAt: Date.now() + OTP_RESEND_DELAY_MS });
       return { ok: result.ok, accountCreated: true, message: result.message };
     } catch (error) {

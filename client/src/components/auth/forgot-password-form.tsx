@@ -53,7 +53,7 @@ export function ForgotPasswordForm({ requestOtp, resetPassword, onReset, onBack 
           name="identifier"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('fieldIdentifier')}</FormLabel>
+              <FormLabel required>{t('fieldIdentifier')}</FormLabel>
               <FormControl>
                 <Input placeholder={t('identifierPlaceholder')} {...field} />
               </FormControl>
@@ -68,7 +68,7 @@ export function ForgotPasswordForm({ requestOtp, resetPassword, onReset, onBack 
             name="otp"
             render={({ field }) => (
               <FormItem className="flex-1">
-                <FormLabel>{t('fieldOtp')}</FormLabel>
+                <FormLabel required>{t('fieldOtp')}</FormLabel>
                 <FormControl>
                   <Input inputMode="numeric" maxLength={6} placeholder={t('otpPlaceholder')} {...field} />
                 </FormControl>
@@ -87,7 +87,7 @@ export function ForgotPasswordForm({ requestOtp, resetPassword, onReset, onBack 
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('fieldNewPassword')}</FormLabel>
+              <FormLabel required>{t('fieldNewPassword')}</FormLabel>
               <FormControl>
                 <PasswordInput placeholder={t('fieldNewPassword')} autoComplete="new-password" {...field} />
               </FormControl>
@@ -101,7 +101,7 @@ export function ForgotPasswordForm({ requestOtp, resetPassword, onReset, onBack 
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('fieldConfirmNewPassword')}</FormLabel>
+              <FormLabel required>{t('fieldConfirmNewPassword')}</FormLabel>
               <FormControl>
                 <PasswordInput
                   placeholder={t('confirmNewPasswordPlaceholder')}

@@ -14,6 +14,7 @@ const { parseLocationFromBody, extractLatLng, haversineKm } = require('../servic
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\d{10}$/;
+const NAME_PATTERN = /^[A-Za-z\s]+$/;
 const EDIT_PROFILE_OTP_PURPOSE = 'edit-profile';
 
 function serializeProfile(profile) {
@@ -49,17 +50,21 @@ async function updateMe(req, res) {
   res.json({ ok: true, profile: serializeProfile(profile) });
 }
 
+// Targets the OTP by email, not phone -- phone numbers aren't unique per
+// account, so keying off it here would let two accounts sharing a number
+// invalidate each other's in-flight edit request (issueOtp deletes any prior
+// unconsumed token for the same target+purpose).
 async function requestProfileEditOtp(req, res) {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ error: 'Account not found.' });
 
-  const eligibility = await resendEligibility(user.phone, EDIT_PROFILE_OTP_PURPOSE);
+  const eligibility = await resendEligibility(user.email, EDIT_PROFILE_OTP_PURPOSE);
   if (!eligibility.eligible) {
     return res.status(429).json({ error: 'Please wait before requesting another code.' });
   }
 
   const deliveries = await issueOtp({
-    target: user.phone,
+    target: user.email,
     purpose: EDIT_PROFILE_OTP_PURPOSE,
     email: user.email,
     phone: user.phone,
@@ -84,7 +89,7 @@ async function updateMyProfile(req, res) {
   if (!user) return res.status(404).json({ error: 'Account not found.' });
 
   const otp = String(req.body?.otp || '');
-  const result = await verifyOtp({ target: user.phone, purpose: EDIT_PROFILE_OTP_PURPOSE, otp });
+  const result = await verifyOtp({ target: user.email, purpose: EDIT_PROFILE_OTP_PURPOSE, otp });
   if (!result.ok) return res.status(400).json({ error: result.message });
 
   const name = String(req.body?.name || '').trim();
@@ -94,25 +99,25 @@ async function updateMyProfile(req, res) {
   const phone = String(req.body?.phone || '').trim();
 
   if (name.length < 3) return res.status(400).json({ error: 'Name must be at least 3 characters.' });
+  if (!NAME_PATTERN.test(name)) return res.status(400).json({ error: 'Name can only contain letters and spaces.' });
   if (!Number.isInteger(age) || age < 1 || age > 120) return res.status(400).json({ error: 'Enter a valid age.' });
   if (!BLOOD_GROUPS.includes(bloodGroup)) return res.status(400).json({ error: 'Select a blood group.' });
   if (!EMAIL_PATTERN.test(email)) return res.status(400).json({ error: 'Enter a valid email address.' });
   if (!PHONE_PATTERN.test(phone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number.' });
 
+  const { city, state, location } = parseLocationFromBody(req.body);
+  if (city && !NAME_PATTERN.test(city)) return res.status(400).json({ error: 'City can only contain letters and spaces.' });
+  if (state && !NAME_PATTERN.test(state)) return res.status(400).json({ error: 'State can only contain letters and spaces.' });
+
   if (email !== user.email) {
     const existingEmail = await User.findOne({ email, _id: { $ne: user._id } });
     if (existingEmail) return res.status(409).json({ error: 'This email is already in use.' });
-  }
-  if (phone !== user.phone) {
-    const existingPhone = await User.findOne({ phone, _id: { $ne: user._id } });
-    if (existingPhone) return res.status(409).json({ error: 'This phone number is already in use.' });
   }
 
   user.email = email;
   user.phone = phone;
   await user.save();
 
-  const { city, state, location } = parseLocationFromBody(req.body);
   const profileUpdates = {
     name,
     age,

@@ -51,6 +51,7 @@ async function buildUserView(user) {
       state: profile.state,
       contactNumber: profile.contactNumber,
       approvalStatus: profile.approvalStatus,
+      rejectionReason: profile.rejectionReason,
       hospitalId: profile._id.toString(),
       coordinates: extractLatLng(profile.location),
     };
@@ -62,11 +63,13 @@ async function buildUserView(user) {
     return {
       ...base,
       bankName: profile.bankName,
+      licenseNumber: profile.licenseNumber,
       address: profile.address,
       city: profile.city,
       state: profile.state,
       contactNumber: profile.contactNumber,
       approvalStatus: profile.approvalStatus,
+      rejectionReason: profile.rejectionReason,
       bankId: profile._id.toString(),
       coordinates: extractLatLng(profile.location),
     };

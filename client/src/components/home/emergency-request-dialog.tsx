@@ -12,6 +12,7 @@ import { OtpForm } from '@/components/auth/otp-form';
 import { RaiseRequestForm } from '@/components/hospital/raise-request-form';
 import { guestRequestSchema, type GuestRequestInput, type GuestRequestValues } from './guest-request-schema';
 import { useGuestRequest } from './use-guest-request';
+import { useRestrictedInput } from '@/hooks/use-restricted-input';
 import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
 import { PRIORITY_LABEL_KEYS } from '@/lib/request-labels';
 import { useSessionStore } from '@/store/session-store';
@@ -42,6 +43,9 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
   // Same Radix Select stuck-value issue as raise-request-form: force a full
   // remount whenever the form resets back to an undefined bloodGroup.
   const [resetKey, setResetKey] = useState(0);
+
+  const nameGuard = useRestrictedInput('alpha');
+  const phoneGuard = useRestrictedInput('numeric');
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -106,10 +110,17 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('yourNameLabel')}</FormLabel>
+                      <FormLabel required>{t('yourNameLabel')}</FormLabel>
                       <FormControl>
-                        <Input placeholder={t('namePlaceholder')} autoComplete="name" {...field} />
+                        <Input
+                          placeholder={t('namePlaceholder')}
+                          autoComplete="name"
+                          {...field}
+                          onKeyDown={nameGuard.onKeyDown}
+                          onPaste={nameGuard.onPaste}
+                        />
                       </FormControl>
+                      {nameGuard.warning && <p className="text-xs text-destructive">{nameGuard.warning}</p>}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -119,7 +130,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('yourPhoneLabel')}</FormLabel>
+                      <FormLabel required>{t('yourPhoneLabel')}</FormLabel>
                       <FormControl>
                         <Input
                           type="tel"
@@ -128,8 +139,11 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                           placeholder={t('phonePlaceholder')}
                           autoComplete="tel"
                           {...field}
+                          onKeyDown={phoneGuard.onKeyDown}
+                          onPaste={phoneGuard.onPaste}
                         />
                       </FormControl>
+                      {phoneGuard.warning && <p className="text-xs text-destructive">{phoneGuard.warning}</p>}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -141,7 +155,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                 name="patient"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('patientHospitalRefLabel')}</FormLabel>
+                    <FormLabel required>{t('patientHospitalRefLabel')}</FormLabel>
                     <FormControl>
                       <Input placeholder={t('patientHospitalRefPlaceholder')} {...field} />
                     </FormControl>
@@ -156,7 +170,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                   name="bloodGroup"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('fieldBloodGroup')}</FormLabel>
+                      <FormLabel required>{t('fieldBloodGroup')}</FormLabel>
                       <Select key={`bloodGroup-${resetKey}`} onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="w-full">
@@ -180,7 +194,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                   name="units"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('fieldUnits')}</FormLabel>
+                      <FormLabel required>{t('fieldUnits')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -200,7 +214,7 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
                 name="priority"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldPriority')}</FormLabel>
+                    <FormLabel required>{t('fieldPriority')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger className="w-full">

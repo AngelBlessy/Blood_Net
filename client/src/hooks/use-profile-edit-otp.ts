@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useCountdown } from '@/hooks/use-countdown';
 import { apiPost, apiErrorMessage } from '@/lib/api';
 
-export function useProfileEditOtp(otpEndpoint: string) {
+export function useProfileEditOtp(otpEndpoint: string, body?: unknown) {
   const { t } = useTranslation();
   const [otpSent, setOtpSent] = useState(false);
   const [resendAt, setResendAt] = useState<number>();
@@ -12,7 +12,7 @@ export function useProfileEditOtp(otpEndpoint: string) {
 
   async function sendCode() {
     try {
-      const result = await apiPost<{ ok: boolean; message: string }>(otpEndpoint);
+      const result = await apiPost<{ ok: boolean; message: string }>(otpEndpoint, body);
       toast.success(result.message);
       setOtpSent(true);
       setResendAt(Date.now() + 30_000);

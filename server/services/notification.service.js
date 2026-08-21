@@ -1,4 +1,5 @@
 const Notification = require('../models/notification.model');
+const User = require('../models/user.model');
 const { emitToUser } = require('../realtime/socket');
 
 // Creates a persisted Notification and pushes it live over Socket.IO in one
@@ -24,4 +25,16 @@ async function notifyUser(userId, title, message) {
   }
 }
 
-module.exports = { notifyUser };
+// Fans the same notification out to every admin (there's usually just one,
+// but the User model doesn't enforce that) -- used for events admins need to
+// see live, like a suspended account still trying to log in.
+async function notifyAdmins(title, message) {
+  try {
+    const admins = await User.find({ role: 'admin' }, '_id');
+    await Promise.all(admins.map((admin) => notifyUser(admin._id, title, message)));
+  } catch (error) {
+    console.error('notifyAdmins failed:', error.message);
+  }
+}
+
+module.exports = { notifyUser, notifyAdmins };

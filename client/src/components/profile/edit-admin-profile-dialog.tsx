@@ -19,6 +19,7 @@ import { editAdminProfileSchema, type EditAdminProfileInput, type EditAdminProfi
 import { ProfileOtpSection } from './profile-otp-section';
 import { useSessionStore } from '@/store/session-store';
 import { useProfileEditOtp } from '@/hooks/use-profile-edit-otp';
+import { useRestrictedInput } from '@/hooks/use-restricted-input';
 import { apiPatch, apiErrorMessage } from '@/lib/api';
 import type { AdminUser, User } from '@/types/domain';
 
@@ -31,6 +32,7 @@ export function EditAdminProfileDialog({ admin }: EditAdminProfileDialogProps) {
   const setUser = useSessionStore((state) => state.setUser);
   const [open, setOpen] = useState(false);
   const otp = useProfileEditOtp('/auth/me/profile/otp');
+  const phoneGuard = useRestrictedInput('numeric');
 
   const defaults = { email: admin.email, phone: admin.phone, otp: '' };
 
@@ -78,7 +80,7 @@ export function EditAdminProfileDialog({ admin }: EditAdminProfileDialogProps) {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('fieldEmailLabel')}</FormLabel>
+                  <FormLabel required>{t('fieldEmailLabel')}</FormLabel>
                   <FormControl>
                     <Input type="email" autoComplete="email" {...field} />
                   </FormControl>
@@ -91,10 +93,19 @@ export function EditAdminProfileDialog({ admin }: EditAdminProfileDialogProps) {
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('fieldPhoneLabel')}</FormLabel>
+                  <FormLabel required>{t('fieldPhoneLabel')}</FormLabel>
                   <FormControl>
-                    <Input type="tel" inputMode="numeric" maxLength={10} autoComplete="tel" {...field} />
+                    <Input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      autoComplete="tel"
+                      {...field}
+                      onKeyDown={phoneGuard.onKeyDown}
+                      onPaste={phoneGuard.onPaste}
+                    />
                   </FormControl>
+                  {phoneGuard.warning && <p className="text-xs text-destructive">{phoneGuard.warning}</p>}
                   <FormMessage />
                 </FormItem>
               )}

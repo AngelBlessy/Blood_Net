@@ -22,6 +22,7 @@ import { BLOOD_GROUPS } from '@/lib/blood-compatibility';
 import { useSessionStore } from '@/store/session-store';
 import { useProfileEditOtp } from '@/hooks/use-profile-edit-otp';
 import { useGeolocation } from '@/hooks/use-geolocation';
+import { useRestrictedInput } from '@/hooks/use-restricted-input';
 import { apiPatch, apiErrorMessage } from '@/lib/api';
 import type { DonorUser, User } from '@/types/domain';
 import { MapPin } from 'lucide-react';
@@ -54,6 +55,11 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
   });
 
   const hasCoordinates = form.watch('lat') !== undefined && form.watch('lng') !== undefined;
+
+  const nameGuard = useRestrictedInput('alpha');
+  const cityGuard = useRestrictedInput('alpha');
+  const stateGuard = useRestrictedInput('alpha');
+  const phoneGuard = useRestrictedInput('numeric');
 
   async function handleUseLocation() {
     const coords = await requestLocation();
@@ -113,10 +119,11 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('fieldNameLabel')}</FormLabel>
+                  <FormLabel required>{t('fieldNameLabel')}</FormLabel>
                   <FormControl>
-                    <Input autoComplete="name" {...field} />
+                    <Input autoComplete="name" {...field} onKeyDown={nameGuard.onKeyDown} onPaste={nameGuard.onPaste} />
                   </FormControl>
+                  {nameGuard.warning && <p className="text-xs text-destructive">{nameGuard.warning}</p>}
                   <FormMessage />
                 </FormItem>
               )}
@@ -128,7 +135,7 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
                 name="age"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldAgeLabel')}</FormLabel>
+                    <FormLabel required>{t('fieldAgeLabel')}</FormLabel>
                     <FormControl>
                       <Input type="number" min={1} {...field} value={(field.value as number | string | undefined) ?? ''} />
                     </FormControl>
@@ -141,7 +148,7 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
                 name="bloodGroup"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldBloodGroup')}</FormLabel>
+                    <FormLabel required>{t('fieldBloodGroup')}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger className="w-full">
@@ -168,10 +175,16 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
                 name="city"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldCity')}</FormLabel>
+                    <FormLabel required>{t('fieldCity')}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t('cityPlaceholder')} {...field} />
+                      <Input
+                        placeholder={t('cityPlaceholder')}
+                        {...field}
+                        onKeyDown={cityGuard.onKeyDown}
+                        onPaste={cityGuard.onPaste}
+                      />
                     </FormControl>
+                    {cityGuard.warning && <p className="text-xs text-destructive">{cityGuard.warning}</p>}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -181,10 +194,16 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
                 name="state"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldState')}</FormLabel>
+                    <FormLabel required>{t('fieldState')}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t('statePlaceholder')} {...field} />
+                      <Input
+                        placeholder={t('statePlaceholder')}
+                        {...field}
+                        onKeyDown={stateGuard.onKeyDown}
+                        onPaste={stateGuard.onPaste}
+                      />
                     </FormControl>
+                    {stateGuard.warning && <p className="text-xs text-destructive">{stateGuard.warning}</p>}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -213,7 +232,7 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldEmailLabel')}</FormLabel>
+                    <FormLabel required>{t('fieldEmailLabel')}</FormLabel>
                     <FormControl>
                       <Input type="email" autoComplete="email" {...field} />
                     </FormControl>
@@ -226,10 +245,19 @@ export function EditProfileDialog({ donor }: EditProfileDialogProps) {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('fieldPhoneLabel')}</FormLabel>
+                    <FormLabel required>{t('fieldPhoneLabel')}</FormLabel>
                     <FormControl>
-                      <Input type="tel" inputMode="numeric" maxLength={10} autoComplete="tel" {...field} />
+                      <Input
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        autoComplete="tel"
+                        {...field}
+                        onKeyDown={phoneGuard.onKeyDown}
+                        onPaste={phoneGuard.onPaste}
+                      />
                     </FormControl>
+                    {phoneGuard.warning && <p className="text-xs text-destructive">{phoneGuard.warning}</p>}
                     <FormMessage />
                   </FormItem>
                 )}

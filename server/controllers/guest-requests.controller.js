@@ -6,6 +6,7 @@ const { parseLocationFromBody } = require('../services/geo.service');
 const { emitToAdmins } = require('../realtime/socket');
 
 const PHONE_PATTERN = /^\d{10}$/;
+const NAME_PATTERN = /^[A-Za-z\s]+$/;
 const OTP_PURPOSE = 'guest-request';
 
 function validateGuestRequest(body) {
@@ -17,6 +18,7 @@ function validateGuestRequest(body) {
   const priority = String(body?.priority || 'Critical');
 
   if (name.length < 2) return { error: 'Enter your name.' };
+  if (!NAME_PATTERN.test(name)) return { error: 'Name can only contain letters and spaces.' };
   if (!PHONE_PATTERN.test(phone)) return { error: 'Enter a valid 10-digit phone number.' };
   if (!patient) return { error: 'Enter a patient / hospital reference.' };
   if (!BLOOD_GROUPS.includes(bloodGroup)) return { error: 'Select a blood group.' };

@@ -14,6 +14,7 @@ const { emitToRequest, emitToAdmins } = require('../realtime/socket');
 const { notifyUser } = require('../services/notification.service');
 
 const PHONE_PATTERN = /^\d{10}$/;
+const NAME_PATTERN = /^[A-Za-z\s]+$/;
 
 async function attachResponses(requests) {
   const requestIds = requests.map((request) => request._id);
@@ -181,6 +182,7 @@ async function create(req, res) {
   if (!Number.isInteger(units) || units < 1) return res.status(400).json({ error: 'Enter a valid number of units.' });
   if (!REQUEST_PRIORITIES.includes(priority)) return res.status(400).json({ error: 'Select a priority.' });
   if (!contactName) return res.status(400).json({ error: 'Enter a contact name.' });
+  if (!NAME_PATTERN.test(contactName)) return res.status(400).json({ error: 'Contact name can only contain letters and spaces.' });
   if (!PHONE_PATTERN.test(contactPhone)) return res.status(400).json({ error: 'Enter a valid 10-digit phone number.' });
 
   // Prefer an explicit location from the request form (e.g. incident location);

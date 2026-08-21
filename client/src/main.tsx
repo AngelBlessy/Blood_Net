@@ -12,7 +12,7 @@ function Root() {
     <ThemeProvider>
       <BrowserRouter>
         <App />
-        <Toaster richColors position="top-center" closeButton />
+        <Toaster richColors position="top-right" closeButton />
       </BrowserRouter>
     </ThemeProvider>
   );

@@ -13,6 +13,7 @@ import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
 import { useSessionStore } from '@/store/session-store';
 import { PRIORITY_LABEL_KEYS } from '@/lib/request-labels';
 import { apiErrorMessage } from '@/lib/api';
+import { useRestrictedInput } from '@/hooks/use-restricted-input';
 import type { RequestPriority, User } from '@/types/domain';
 
 const PRIORITIES: RequestPriority[] = ['Critical', 'Urgent', 'Routine'];
@@ -41,6 +42,9 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
   // switch it doesn't visually recover from) — forcing a full remount via a
   // changing key is the reliable fix.
   const [resetKey, setResetKey] = useState(0);
+
+  const contactNameGuard = useRestrictedInput('alpha');
+  const contactPhoneGuard = useRestrictedInput('numeric');
 
   const form = useForm<RaiseRequestInput, unknown, RaiseRequestValues>({
     resolver: zodResolver(raiseRequestSchema),
@@ -81,7 +85,7 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
           name="patient"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('fieldPatientCase')}</FormLabel>
+              <FormLabel required>{t('fieldPatientCase')}</FormLabel>
               <FormControl>
                 <Input placeholder={t('patientPlaceholder')} {...field} />
               </FormControl>
@@ -96,10 +100,17 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
             name="contactName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('fieldContactName')}</FormLabel>
+                <FormLabel required>{t('fieldContactName')}</FormLabel>
                 <FormControl>
-                  <Input placeholder={t('contactNamePlaceholder')} autoComplete="name" {...field} />
+                  <Input
+                    placeholder={t('contactNamePlaceholder')}
+                    autoComplete="name"
+                    {...field}
+                    onKeyDown={contactNameGuard.onKeyDown}
+                    onPaste={contactNameGuard.onPaste}
+                  />
                 </FormControl>
+                {contactNameGuard.warning && <p className="text-xs text-destructive">{contactNameGuard.warning}</p>}
                 <FormMessage />
               </FormItem>
             )}
@@ -110,7 +121,7 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
             name="contactPhone"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('fieldContactPhone')}</FormLabel>
+                <FormLabel required>{t('fieldContactPhone')}</FormLabel>
                 <FormControl>
                   <Input
                     type="tel"
@@ -119,8 +130,11 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
                     placeholder={t('phonePlaceholder')}
                     autoComplete="tel"
                     {...field}
+                    onKeyDown={contactPhoneGuard.onKeyDown}
+                    onPaste={contactPhoneGuard.onPaste}
                   />
                 </FormControl>
+                {contactPhoneGuard.warning && <p className="text-xs text-destructive">{contactPhoneGuard.warning}</p>}
                 <FormMessage />
               </FormItem>
             )}
@@ -133,7 +147,7 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
             name="bloodGroup"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('fieldBloodGroup')}</FormLabel>
+                <FormLabel required>{t('fieldBloodGroup')}</FormLabel>
                 <Select key={`bloodGroup-${resetKey}`} onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger className="w-full">
@@ -158,7 +172,7 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
             name="units"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('fieldUnits')}</FormLabel>
+                <FormLabel required>{t('fieldUnits')}</FormLabel>
                 <FormControl>
                   <Input type="number" min={1} {...field} value={(field.value as number | string | undefined) ?? ''} />
                 </FormControl>
@@ -173,7 +187,7 @@ export function RaiseRequestForm({ defaultPriority = 'Critical', submitLabel, on
           name="priority"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('fieldPriority')}</FormLabel>
+              <FormLabel required>{t('fieldPriority')}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger className="w-full">

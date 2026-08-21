@@ -47,6 +47,7 @@ export interface HospitalUser extends BaseUser {
   state?: string | null;
   contactNumber?: string;
   approvalStatus: ApprovalStatus;
+  rejectionReason?: string | null;
   coordinates?: Coordinates | null;
 }
 
@@ -54,11 +55,13 @@ export interface BloodBankUser extends BaseUser {
   role: 'bloodbank';
   bankId: string;
   bankName: string;
+  licenseNumber: string;
   address?: string;
   city?: string;
   state?: string | null;
   contactNumber?: string;
   approvalStatus: ApprovalStatus;
+  rejectionReason?: string | null;
   coordinates?: Coordinates | null;
 }
 
@@ -242,6 +245,13 @@ export interface AdminAnalytics {
 export type ManageableRole = 'donor' | 'hospital' | 'bloodbank';
 export type UserAccountStatus = 'pending' | 'active' | 'suspended';
 
+export interface AdminLicenseDocument {
+  originalName: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+}
+
 export interface AdminUserListItem {
   id: string;
   name: string | null;
@@ -250,5 +260,13 @@ export interface AdminUserListItem {
   email: string;
   phone: string;
   status: UserAccountStatus;
+  approvalStatus: ApprovalStatus | null;
+  rejectionReason: string | null;
+  // HospitalProfile/BloodBankProfile _id, distinct from `id` (the User
+  // _id) -- the approve/reject/license-document endpoints key off this.
+  approvalId: string | null;
+  licenseDocument: AdminLicenseDocument | null;
+  reactivationRequestedAt: string | null;
+  suspensionReason: string | null;
   createdAt: string;
 }

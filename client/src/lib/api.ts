@@ -6,11 +6,18 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
 export class ApiError extends Error {
   status: number;
+  code?: string;
+  // The full parsed error response body, for endpoints that attach extra
+  // structured fields (e.g. login's rejected-account response includes
+  // `role` and `rejectionReason` alongside the message).
+  data?: Record<string, unknown>;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string, data?: Record<string, unknown>) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
+    this.data = data;
   }
 }
 
@@ -18,7 +25,8 @@ async function handle<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}) as Record<string, unknown>);
   if (!response.ok) {
     const message = typeof data.error === 'string' ? data.error : 'Something went wrong. Please try again.';
-    throw new ApiError(message, response.status);
+    const code = typeof data.code === 'string' ? data.code : undefined;
+    throw new ApiError(message, response.status, code, data);
   }
   return data as T;
 }
@@ -37,6 +45,26 @@ export function apiGet<T>(path: string): Promise<T> {
 
 export function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) });
+}
+
+// For multipart/form-data submissions (e.g. registration or a profile edit
+// with a file attached). Deliberately omits the Content-Type header -- the
+// browser sets it itself, including the multipart boundary, which
+// JSON.stringify-based apiPost/apiPatch can't do.
+function requestForm<T>(path: string, method: string, formData: FormData): Promise<T> {
+  return fetch(`${API_BASE_URL}/api${path}`, {
+    method,
+    credentials: 'include',
+    body: formData,
+  }).then((response) => handle<T>(response));
+}
+
+export function apiPostForm<T>(path: string, formData: FormData): Promise<T> {
+  return requestForm<T>(path, 'POST', formData);
+}
+
+export function apiPatchForm<T>(path: string, formData: FormData): Promise<T> {
+  return requestForm<T>(path, 'PATCH', formData);
 }
 
 export function apiPatch<T>(path: string, body?: unknown): Promise<T> {

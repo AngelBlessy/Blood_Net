@@ -55,7 +55,7 @@ export function OtpForm({ expiresAt, resendAt, message, verifyOtp, resendOtp, on
           name="otp"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('fieldOtp')}</FormLabel>
+              <FormLabel required>{t('fieldOtp')}</FormLabel>
               <FormControl>
                 <Input
                   inputMode="numeric"

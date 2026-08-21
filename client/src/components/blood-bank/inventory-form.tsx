@@ -44,7 +44,7 @@ export function InventoryForm() {
           name="group"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('fieldBloodGroup')}</FormLabel>
+              <FormLabel required>{t('fieldBloodGroup')}</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger className="w-full">
@@ -69,7 +69,7 @@ export function InventoryForm() {
           name="units"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('fieldAvailableUnits')}</FormLabel>
+              <FormLabel required>{t('fieldAvailableUnits')}</FormLabel>
               <FormControl>
                 <Input type="number" min={0} {...field} value={(field.value as number | string | undefined) ?? ''} />
               </FormControl>
@@ -84,7 +84,7 @@ export function InventoryForm() {
             name="expiry"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('fieldExpiryDate')}</FormLabel>
+                <FormLabel required>{t('fieldExpiryDate')}</FormLabel>
                 <FormControl>
                   <Input type="date" min={minExpiry} {...field} />
                 </FormControl>
@@ -98,7 +98,7 @@ export function InventoryForm() {
             name="location"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('fieldStorageLocation')}</FormLabel>
+                <FormLabel required>{t('fieldStorageLocation')}</FormLabel>
                 <FormControl>
                   <Input placeholder={t('storageLocationPlaceholder')} {...field} />
                 </FormControl>
