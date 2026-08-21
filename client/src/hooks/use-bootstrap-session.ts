@@ -1,12 +1,29 @@
 import { useEffect } from 'react';
+import { toast } from 'sonner';
 import { apiGet } from '@/lib/api';
 import { useSessionStore } from '@/store/session-store';
 import type { User } from '@/types/domain';
 
+// /auth/me always reflects the account's live status (it re-reads the user
+// from the database on every call), but unlike a rejected API call it never
+// errors for a suspended account -- it just returns them with
+// status: 'suspended'. The socket-pushed forced logout (see
+// use-suspension-listener.ts) is the fast path; this is the fallback for
+// whenever that push was missed (e.g. this tab's socket was disconnected at
+// the moment the admin suspended them).
+function applySession(data: { user: User | null }, setUser: (user: User | null) => void) {
+  if (data.user?.status === 'suspended') {
+    setUser(null);
+    toast.error('Your account has been suspended by the admin. Please ask the admin for approval again.');
+    return;
+  }
+  setUser(data.user);
+}
+
 async function refreshSession(setUser: (user: User | null) => void) {
   try {
     const data = await apiGet<{ user: User | null }>('/auth/me');
-    setUser(data.user);
+    applySession(data, setUser);
   } catch {
     // transient network error — keep the last known session rather than logging out
   }
@@ -26,7 +43,7 @@ export function useBootstrapSession() {
     let cancelled = false;
     apiGet<{ user: User | null }>('/auth/me')
       .then((data) => {
-        if (!cancelled) setUser(data.user);
+        if (!cancelled) applySession(data, setUser);
       })
       .catch(() => {})
       .finally(() => {

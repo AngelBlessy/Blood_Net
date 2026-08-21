@@ -2,6 +2,7 @@ const DonorProfile = require('../models/donor-profile.model');
 const { isDonorCompatible } = require('../services/blood-compatibility.service');
 const { haversineKm, jitterPoint } = require('../services/geo.service');
 const { computeDonorScores } = require('../services/priority-score.service');
+const { normalizeCity } = require('../services/city-alias.service');
 const { BLOOD_GROUPS } = require('../constants');
 
 const DEFAULT_RADIUS_KM = 25;
@@ -45,7 +46,16 @@ async function searchDonors(req, res) {
     // unfiltered/city-only search — see the else branch below.
     entries = entries.filter((entry) => entry.distanceKm !== null && entry.distanceKm <= radiusKm);
   } else if (city) {
-    entries = entries.filter((entry) => (entry.donor.city || '').toLowerCase().includes(city));
+    // Substring match supports partial typing (e.g. "chen" -> "Chennai").
+    // The normalizeCity comparison alongside it catches an alternate city
+    // name typed in full (e.g. "bangalore" matching a donor's "Bengaluru")
+    // that plain substring matching can't, since neither string contains
+    // the other (see city-alias.service.js).
+    const normalizedCity = normalizeCity(city);
+    entries = entries.filter((entry) => {
+      const donorCity = entry.donor.city || '';
+      return donorCity.toLowerCase().includes(city) || normalizeCity(donorCity) === normalizedCity;
+    });
   }
 
   const distanceByDonorId = new Map(entries.map((entry) => [entry.donor._id.toString(), entry.distanceKm]));

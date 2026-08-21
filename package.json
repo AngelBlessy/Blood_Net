@@ -6,7 +6,7 @@
   "scripts": {
     "postinstall": "npm install --prefix client",
     "dev": "concurrently -n server,client,ml -c blue,magenta,green \"npm:dev:server\" \"npm:dev:client\" \"npm:dev:ml\"",
-    "dev:server": "node server/index.js",
+    "dev:server": "nodemon server/index.js",
     "dev:client": "npm run dev --prefix client",
     "dev:ml": "python ml/app.py",
     "build": "npm run build --prefix client",
@@ -38,6 +38,7 @@
     "@vitest/coverage-v8": "^4.1.11",
     "concurrently": "^10.0.3",
     "mongodb-memory-server": "^11.2.0",
+    "nodemon": "^3.1.14",
     "supertest": "^7.2.2",
     "vitest": "^4.1.11"
   }

@@ -2,6 +2,7 @@ const DonorProfile = require('../models/donor-profile.model');
 const { isDonorCompatible } = require('./blood-compatibility.service');
 const { haversineKm } = require('./geo.service');
 const { computeDonorScores } = require('./priority-score.service');
+const { sameCity } = require('./city-alias.service');
 
 function sameText(a, b) {
   return Boolean(a) && Boolean(b) && a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -21,16 +22,25 @@ function sameText(a, b) {
 //     themselves about their own raised request).
 //   - `includeTraveling` — when true, skips the normal `traveling: false`
 //     exclusion (the hospital "notify all" override).
+//   - `includeUnavailable` — when true, skips the normal
+//     `availabilityStatus: 'available'` exclusion (also part of "notify all").
+//   - `ignoreBloodGroup` — when true, skips blood-group compatibility
+//     entirely (also part of "notify all" — that button is a last-resort
+//     broadcast to literally every donor, not a matching search).
 //   - `city`/`state` — exact (case-insensitive) text match, used for
-//     Urgent/Routine priority instead of radius. Donors missing either field
-//     always pass (never excludes profiles from before this existed).
+//     Urgent/Routine priority instead of radius. City also folds in known
+//     alternate names (see city-alias.service.js), so a hospital in
+//     "Bangalore" still reaches a donor registered under "Bengaluru". Donors
+//     missing either field always pass (never excludes profiles from before
+//     this existed).
 //   - `originPoint`/`radiusKm` — distance filter, only applied when
 //     city/state weren't given (radius is the fallback path, e.g. /search).
 async function findRankedDonors(
   bloodGroupNeeded,
-  { originPoint, radiusKm, excludeUserId, includeTraveling = false, city, state } = {}
+  { originPoint, radiusKm, excludeUserId, includeTraveling = false, includeUnavailable = false, city, state, ignoreBloodGroup = false } = {}
 ) {
-  const query = { availabilityStatus: 'available' };
+  const query = {};
+  if (!includeUnavailable) query.availabilityStatus = 'available';
   if (!includeTraveling) query.traveling = false;
 
   const candidates = await DonorProfile.find(query).populate('userId');
@@ -38,14 +48,14 @@ async function findRankedDonors(
     (donor) =>
       donor.userId &&
       donor.userId.status === 'active' &&
-      isDonorCompatible(bloodGroupNeeded, donor.bloodGroup) &&
+      (ignoreBloodGroup || isDonorCompatible(bloodGroupNeeded, donor.bloodGroup)) &&
       (!excludeUserId || donor.userId._id.toString() !== excludeUserId.toString())
   );
 
   if (city && state) {
     compatible = compatible.filter((donor) => {
       if (!donor.city || !donor.state) return true;
-      return sameText(donor.city, city) && sameText(donor.state, state);
+      return sameCity(donor.city, city) && sameText(donor.state, state);
     });
   } else if (originPoint && radiusKm) {
     compatible = compatible.filter((donor) => {

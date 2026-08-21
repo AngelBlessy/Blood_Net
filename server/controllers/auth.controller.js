@@ -10,6 +10,7 @@ const { BLOOD_GROUPS } = require('../constants');
 const { parseLocationFromBody } = require('../services/geo.service');
 const { emitToAdmins } = require('../realtime/socket');
 const { notifyAdmins } = require('../services/notification.service');
+const { suspensionMessage } = require('../utils/suspension-message');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_PATTERN = /^\d{10}$/;
@@ -81,17 +82,22 @@ async function register(req, res) {
     if (state && !NAME_PATTERN.test(state)) return res.status(400).json({ error: 'State can only contain letters and spaces.' });
 
     const user = await User.create({ email, phone, passwordHash, role: 'donor' });
-    await DonorProfile.create({
-      userId: user._id,
-      name,
-      age,
-      bloodGroup,
-      donatedEver,
-      lastDonationDate: donatedEver === 'yes' && body.lastDonationDate ? new Date(body.lastDonationDate) : null,
-      city,
-      state,
-      ...(location ? { location } : {}),
-    });
+    try {
+      await DonorProfile.create({
+        userId: user._id,
+        name,
+        age,
+        bloodGroup,
+        donatedEver,
+        lastDonationDate: donatedEver === 'yes' && body.lastDonationDate ? new Date(body.lastDonationDate) : null,
+        city,
+        state,
+        ...(location ? { location } : {}),
+      });
+    } catch (err) {
+      await User.deleteOne({ _id: user._id });
+      throw err;
+    }
     emitToAdmins('admin:refresh');
     return finishRegistration(res, user, email, phone);
   }
@@ -110,17 +116,22 @@ async function register(req, res) {
     if (state && !NAME_PATTERN.test(state)) return res.status(400).json({ error: 'State can only contain letters and spaces.' });
 
     const user = await User.create({ email, phone, passwordHash, role: 'hospital' });
-    await HospitalProfile.create({
-      userId: user._id,
-      hospitalName,
-      licenseNumber,
-      licenseDocument: buildLicenseDocument(req.file),
-      address: String(body.address || '').trim(),
-      city: hospitalCity,
-      state,
-      contactNumber: String(body.contactNumber || phone).trim(),
-      ...(location ? { location } : {}),
-    });
+    try {
+      await HospitalProfile.create({
+        userId: user._id,
+        hospitalName,
+        licenseNumber,
+        licenseDocument: buildLicenseDocument(req.file),
+        address: String(body.address || '').trim(),
+        city: hospitalCity,
+        state,
+        contactNumber: String(body.contactNumber || phone).trim(),
+        ...(location ? { location } : {}),
+      });
+    } catch (err) {
+      await User.deleteOne({ _id: user._id });
+      throw err;
+    }
     emitToAdmins('admin:refresh');
     return finishRegistration(res, user, email, phone);
   }
@@ -139,17 +150,22 @@ async function register(req, res) {
   if (state && !NAME_PATTERN.test(state)) return res.status(400).json({ error: 'State can only contain letters and spaces.' });
 
   const user = await User.create({ email, phone, passwordHash, role: 'bloodbank' });
-  await BloodBankProfile.create({
-    userId: user._id,
-    bankName,
-    licenseNumber,
-    licenseDocument: buildLicenseDocument(req.file),
-    address: String(body.address || '').trim(),
-    city: bankCity,
-    state,
-    contactNumber: String(body.contactNumber || phone).trim(),
-    ...(location ? { location } : {}),
-  });
+  try {
+    await BloodBankProfile.create({
+      userId: user._id,
+      bankName,
+      licenseNumber,
+      licenseDocument: buildLicenseDocument(req.file),
+      address: String(body.address || '').trim(),
+      city: bankCity,
+      state,
+      contactNumber: String(body.contactNumber || phone).trim(),
+      ...(location ? { location } : {}),
+    });
+  } catch (err) {
+    await User.deleteOne({ _id: user._id });
+    throw err;
+  }
   emitToAdmins('admin:refresh');
   return finishRegistration(res, user, email, phone);
 }
@@ -205,9 +221,8 @@ async function login(req, res) {
       'Suspended account tried to log in',
       `${user.email} (${user.role}) attempted to log in but their account is suspended.`
     );
-    const reasonText = user.suspensionReason ? `: ${user.suspensionReason}` : '.';
     return res.status(403).json({
-      error: `Your account has been suspended by the admin${reasonText} Please ask the admin for approval again.`,
+      error: suspensionMessage(user.suspensionReason),
       code: 'account_suspended',
       suspensionReason: user.suspensionReason,
     });

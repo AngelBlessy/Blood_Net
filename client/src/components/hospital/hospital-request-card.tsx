@@ -24,9 +24,15 @@ import { apiErrorMessage } from '@/lib/api';
 interface HospitalRequestCardProps {
   request: HospitalRequest;
   showActions?: boolean;
+  // Lets a blood bank that accepted (but didn't raise) this request close it
+  // out once fulfilled, without exposing the raiser-only notify/edit
+  // controls that showActions gates. The server enforces this too (see
+  // canCloseAsRespondingBank in hospital-requests.controller.js) — this is
+  // just what keeps the button off the card when it would 403 anyway.
+  canComplete?: boolean;
 }
 
-export function HospitalRequestCard({ request, showActions = false }: HospitalRequestCardProps) {
+export function HospitalRequestCard({ request, showActions = false, canComplete = false }: HospitalRequestCardProps) {
   const { t } = useTranslation();
   const updateRequest = useHospitalRequestsStore((state) => state.updateRequest);
   const notifyDonors = useHospitalRequestsStore((state) => state.notifyDonors);
@@ -152,12 +158,14 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
         </p>
       )}
 
-      {showActions && (
+      {(showActions || canComplete) && (
         <div className="mt-1 flex flex-wrap gap-2">
-          <Button variant="link" size="sm" className="h-auto p-0" onClick={handleNotify} disabled={notifying}>
-            {notifying ? t('notifyingEllipsis') : t('requestDonorsLink')}
-          </Button>
-          {isHospital && request.status !== 'Completed' && (
+          {showActions && (
+            <Button variant="link" size="sm" className="h-auto p-0" onClick={handleNotify} disabled={notifying}>
+              {notifying ? t('notifyingEllipsis') : t('requestDonorsLink')}
+            </Button>
+          )}
+          {showActions && isHospital && request.status !== 'Completed' && (
             <Button
               variant="link"
               size="sm"
@@ -169,9 +177,11 @@ export function HospitalRequestCard({ request, showActions = false }: HospitalRe
               {notifyingAll ? t('notifyingEllipsis') : t('notifyAllDonorsLink')}
             </Button>
           )}
-          <Button variant="link" size="sm" className="h-auto gap-1 p-0" onClick={() => setEditOpen(true)}>
-            <Pencil className="size-3" /> {t('editLink')}
-          </Button>
+          {showActions && (
+            <Button variant="link" size="sm" className="h-auto gap-1 p-0" onClick={() => setEditOpen(true)}>
+              <Pencil className="size-3" /> {t('editLink')}
+            </Button>
+          )}
           {request.status !== 'Completed' && (
             <Button variant="link" size="sm" className="h-auto p-0" onClick={handleComplete}>
               {t('markCompleted')}

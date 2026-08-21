@@ -19,10 +19,20 @@ function upsert(list: HospitalRequest[], updated: HospitalRequest) {
     : [updated, ...list];
 }
 
-function replaceInBoth(requests: HospitalRequest[], myRequests: HospitalRequest[], id: string, updated: HospitalRequest) {
+// A request can live in several of these lists at once (e.g. respondedRequests
+// for a bank that accepted it, requests for the public feed) — updates it
+// wherever it's already present rather than assuming it's only ever in
+// requests/myRequests. Used for both a raiser's own edits and a responding
+// blood bank's "Mark completed" (see canCloseAsRespondingBank server-side),
+// so respondedRequests has to be covered here too or that card would keep
+// showing stale status until the next poll.
+function replaceEverywhere(state: HospitalRequestsState, id: string, updated: HospitalRequest) {
+  const replace = (list: HospitalRequest[]) => list.map((entry) => (entry.id === id ? updated : entry));
   return {
-    requests: requests.map((entry) => (entry.id === id ? updated : entry)),
-    myRequests: myRequests.map((entry) => (entry.id === id ? updated : entry)),
+    requests: replace(state.requests),
+    myRequests: replace(state.myRequests),
+    incomingRequests: replace(state.incomingRequests),
+    respondedRequests: replace(state.respondedRequests),
   };
 }
 
@@ -44,6 +54,7 @@ interface HospitalRequestsState {
   requests: HospitalRequest[];
   myRequests: HospitalRequest[];
   incomingRequests: HospitalRequest[];
+  respondedRequests: HospitalRequest[];
   loading: boolean;
   fetchRequests: (options?: {
     mine?: boolean;
@@ -58,6 +69,11 @@ interface HospitalRequestsState {
   // Hospital-raised requests visible to every approved blood bank — separate
   // state so it never mixes with a blood bank's own raised requests (myRequests).
   fetchIncomingRequests: () => Promise<HospitalRequest[]>;
+  // Requests this blood bank has accepted (from fetchIncomingRequests above),
+  // at any status -- unlike incomingRequests, this doesn't drop off once a
+  // request is completed, so the dashboard can keep showing it through to
+  // "Completed" instead of it just vanishing.
+  fetchRespondedRequests: () => Promise<HospitalRequest[]>;
   createRequest: (input: CreateRequestInput) => Promise<{ ok: boolean; message: string }>;
   updateRequest: (id: string, updates: { patient?: string; units?: number; status?: 'Completed' }) => Promise<void>;
   notifyDonors: (id: string) => Promise<{ ok: boolean; message: string }>;
@@ -70,6 +86,7 @@ export const useHospitalRequestsStore = create<HospitalRequestsState>((set) => (
   requests: [],
   myRequests: [],
   incomingRequests: [],
+  respondedRequests: [],
   loading: false,
 
   async fetchRequests(options) {
@@ -101,6 +118,12 @@ export const useHospitalRequestsStore = create<HospitalRequestsState>((set) => (
     return data.requests;
   },
 
+  async fetchRespondedRequests() {
+    const data = await apiGet<{ requests: HospitalRequest[] }>('/hospital-requests?respondedByBank=true');
+    set({ respondedRequests: data.requests });
+    return data.requests;
+  },
+
   async createRequest(input) {
     const data = await apiPost<{ ok: boolean; message: string; request: HospitalRequest }>('/hospital-requests', input);
     set((state) => ({ myRequests: [data.request, ...state.myRequests] }));
@@ -109,14 +132,14 @@ export const useHospitalRequestsStore = create<HospitalRequestsState>((set) => (
 
   async updateRequest(id, updates) {
     const data = await apiPatch<{ ok: boolean; request: HospitalRequest }>(`/hospital-requests/${id}`, updates);
-    set((state) => replaceInBoth(state.requests, state.myRequests, id, data.request));
+    set((state) => replaceEverywhere(state, id, data.request));
   },
 
   async notifyDonors(id) {
     const data = await apiPost<{ ok: boolean; message: string; request: HospitalRequest }>(
       `/hospital-requests/${id}/notify`
     );
-    set((state) => replaceInBoth(state.requests, state.myRequests, id, data.request));
+    set((state) => replaceEverywhere(state, id, data.request));
     return { ok: data.ok, message: data.message };
   },
 
@@ -124,7 +147,7 @@ export const useHospitalRequestsStore = create<HospitalRequestsState>((set) => (
     const data = await apiPost<{ ok: boolean; message: string; request: HospitalRequest }>(
       `/hospital-requests/${id}/notify-all`
     );
-    set((state) => replaceInBoth(state.requests, state.myRequests, id, data.request));
+    set((state) => replaceEverywhere(state, id, data.request));
     return { ok: data.ok, message: data.message };
   },
 
@@ -136,7 +159,18 @@ export const useHospitalRequestsStore = create<HospitalRequestsState>((set) => (
     const data = await apiPost<{ ok: boolean; request: HospitalRequest }>(`/hospital-requests/${id}/respond-bank`, {
       response,
     });
-    set((state) => ({ incomingRequests: upsert(state.incomingRequests, data.request) }));
+    // /respond-bank's response doesn't carry myBankResponse (only the list
+    // endpoint computes that field) -- stamp it on here ourselves, or
+    // upserting data.request as-is would wipe out the "you responded" state
+    // this same action just set, flipping the card straight back to showing
+    // Accept/Reject until the next poll.
+    const updated = { ...data.request, myBankResponse: response };
+    set((state) => ({
+      incomingRequests: upsert(state.incomingRequests, updated),
+      // Accepting should show up in live tracking immediately rather than
+      // waiting on the next 30s poll (see fetchRespondedRequests).
+      respondedRequests: response === 'Accepted' ? upsert(state.respondedRequests, updated) : state.respondedRequests,
+    }));
   },
 }));
 

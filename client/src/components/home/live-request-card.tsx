@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
+import { useSessionStore } from '@/store/session-store';
 import { apiErrorMessage } from '@/lib/api';
 import { EmergencyRequestDialog } from './emergency-request-dialog';
 import type { HospitalRequest } from '@/types/domain';
@@ -26,6 +27,11 @@ function LiveRequestEntry({ request }: { request: HospitalRequest }) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<string>();
   const notifyDonors = useHospitalRequestsStore((state) => state.notifyDonors);
+  // Admins oversee the network, they don't act as a requester — the backend
+  // already rejects this for them (requireRole('donor', 'hospital',
+  // 'bloodbank') on POST /:id/notify, see hospital-requests.routes.js), this
+  // just keeps the dead-end button off their screen in the first place.
+  const isAdmin = useSessionStore((state) => state.session?.user.role === 'admin');
 
   async function handleNotify() {
     setStatus(t('notifyingDonorsStatus'));
@@ -60,9 +66,11 @@ function LiveRequestEntry({ request }: { request: HospitalRequest }) {
           : t('compatibleDonorsAlerted', { count: request.matches, status: request.status })}
       </p>
 
-      <Button className="w-full" onClick={handleNotify}>
-        {t('notifyTop')}
-      </Button>
+      {!isAdmin && (
+        <Button className="w-full" onClick={handleNotify}>
+          {t('notifyTop')}
+        </Button>
+      )}
       {status && <p className="text-center text-xs text-muted-foreground">{status}</p>}
     </div>
   );

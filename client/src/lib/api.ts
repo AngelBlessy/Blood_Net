@@ -26,6 +26,19 @@ async function handle<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const message = typeof data.error === 'string' ? data.error : 'Something went wrong. Please try again.';
     const code = typeof data.code === 'string' ? data.code : undefined;
+    // Belt-and-suspenders alongside the socket-pushed forced logout
+    // (use-suspension-listener.ts): if this tab missed that push -- socket
+    // reconnecting, suspended while offline, etc. -- the server still
+    // rejects every authenticated call with this code (see requireAuth in
+    // middleware/auth.js), so clear the stale client-side session here too.
+    if (code === 'account_suspended') {
+      // Dynamic import (not a top-level one) deliberately -- session-store.ts
+      // pulls in lib/socket.ts, which imports API_BASE_URL from this same
+      // file, and a top-level import here would turn that into a real
+      // circular import. This path only runs on the rare suspended-account
+      // error, so deferring it costs nothing.
+      import('@/store/session-store').then(({ useSessionStore }) => useSessionStore.getState().setUser(null));
+    }
     throw new ApiError(message, response.status, code, data);
   }
   return data as T;

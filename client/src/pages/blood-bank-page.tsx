@@ -12,6 +12,16 @@ import { HospitalRequestCard } from '@/components/hospital/hospital-request-card
 import { RaiseRequestForm } from '@/components/hospital/raise-request-form';
 import { useInventoryStore } from '@/store/inventory-store';
 import { useHospitalRequestsStore } from '@/store/hospital-requests-store';
+import type { HospitalRequest } from '@/types/domain';
+
+// myRequests (raised by this bank) and respondedRequests (raised by someone
+// else, accepted by this bank) are fetched independently and can't overlap in
+// practice (a bank can't accept its own request), but de-duping by id here
+// keeps that an invariant this list doesn't quietly rely on.
+function dedupeById(requests: HospitalRequest[]) {
+  const seen = new Set<string>();
+  return requests.filter((request) => (seen.has(request.id) ? false : (seen.add(request.id), true)));
+}
 
 export function BloodBankPage() {
   const { t } = useTranslation();
@@ -21,20 +31,40 @@ export function BloodBankPage() {
   const fetchMyRequests = useHospitalRequestsStore((state) => state.fetchMyRequests);
   const incomingRequests = useHospitalRequestsStore((state) => state.incomingRequests);
   const fetchIncomingRequests = useHospitalRequestsStore((state) => state.fetchIncomingRequests);
+  const respondedRequests = useHospitalRequestsStore((state) => state.respondedRequests);
+  const fetchRespondedRequests = useHospitalRequestsStore((state) => state.fetchRespondedRequests);
 
   useEffect(() => {
     fetchItems({ mine: true });
     fetchMyRequests();
     fetchIncomingRequests();
+    fetchRespondedRequests();
     // Hospital requests raised by others don't push a live update to this
     // account (the server only notifies the raising hospital's room), so
     // poll instead — same fallback pattern as hospital-page.tsx.
-    const interval = setInterval(fetchIncomingRequests, 30_000);
+    const interval = setInterval(() => {
+      fetchIncomingRequests();
+      fetchRespondedRequests();
+    }, 30_000);
     return () => clearInterval(interval);
-  }, [fetchItems, fetchMyRequests, fetchIncomingRequests]);
+  }, [fetchItems, fetchMyRequests, fetchIncomingRequests, fetchRespondedRequests]);
 
-  const openRequests = myRequests.filter((request) => request.status !== 'Completed');
-  const completedRequests = myRequests.filter((request) => request.status === 'Completed');
+  // An accepted request (raised by someone else) belongs in the same live
+  // tracking / completed split as this bank's own raised requests — it just
+  // doesn't get the notify/edit controls, since only the raiser owns those
+  // (see showActions below). It also drops out of Incoming requests once
+  // accepted: Live tracking is now the one place it's shown as "in
+  // progress", so it isn't sitting in both feeds at once.
+  const myOwnRequestIds = new Set(myRequests.map((request) => request.id));
+  const pendingIncomingRequests = incomingRequests.filter((request) => request.myBankResponse !== 'Accepted');
+  const openRequests = dedupeById([
+    ...myRequests.filter((request) => request.status !== 'Completed'),
+    ...respondedRequests.filter((request) => request.status !== 'Completed'),
+  ]);
+  const completedRequests = dedupeById([
+    ...myRequests.filter((request) => request.status === 'Completed'),
+    ...respondedRequests.filter((request) => request.status === 'Completed'),
+  ]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -70,10 +100,12 @@ export function BloodBankPage() {
         <span className="text-sm font-medium text-primary">{t('incomingRequestsEyebrow')}</span>
         <h2 className="text-lg font-semibold">{t('incomingRequestsTitle')}</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {incomingRequests.length === 0 ? (
+          {pendingIncomingRequests.length === 0 ? (
             <EmptyState>{t('noIncomingRequestsYet')}</EmptyState>
           ) : (
-            incomingRequests.slice(0, 8).map((request) => <IncomingRequestCard key={request.id} request={request} />)
+            pendingIncomingRequests
+              .slice(0, 8)
+              .map((request) => <IncomingRequestCard key={request.id} request={request} />)
           )}
         </div>
       </Card>
@@ -85,9 +117,12 @@ export function BloodBankPage() {
           {openRequests.length === 0 ? (
             <EmptyState>{t('noRequestsYet')}</EmptyState>
           ) : (
-            openRequests.slice(0, 8).map((request) => (
-              <HospitalRequestCard key={request.id} request={request} showActions />
-            ))
+            openRequests.slice(0, 8).map((request) => {
+              const isOwn = myOwnRequestIds.has(request.id);
+              return (
+                <HospitalRequestCard key={request.id} request={request} showActions={isOwn} canComplete={!isOwn} />
+              );
+            })
           )}
         </div>
       </Card>

@@ -110,7 +110,7 @@ export interface HospitalRequest {
   contactPhone?: string | null;
   responses: DonorResponseEntry[];
   bankResponses: BloodBankResponseEntry[];
-  // Only present on the blood-bank "incoming requests" feed (GET ?forBloodBank=true).
+  // Only present on the blood-bank feeds (GET ?forBloodBank=true or ?respondedByBank=true).
   myBankResponse?: DonorResponse | null;
 }
 

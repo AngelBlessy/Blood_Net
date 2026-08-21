@@ -168,6 +168,73 @@ describe('PATCH /api/hospital-requests/:id (update / complete)', () => {
     expect(updatedDonor.lastDonationDate).not.toBeNull();
   });
 
+  it('a blood bank that accepted the request can mark it Completed even though it did not raise it', async () => {
+    const { user: bankUser, profile: bankProfile, password: bankPassword } = await createBloodBank();
+    await BloodInventory.create({ bankId: bankProfile._id, bloodGroup: 'O+', units: 10 });
+    const { cookie: hospitalCookieValue } = await hospitalCookie();
+    const created = await agent()
+      .post('/api/hospital-requests')
+      .set('Cookie', hospitalCookieValue)
+      .send(requestPayload({ bloodGroup: 'O+', units: 1 }));
+
+    const bankCookie = await loginAndGetCookie({ email: bankUser.email, password: bankPassword });
+    await agent()
+      .post(`/api/hospital-requests/${created.body.request.id}/respond-bank`)
+      .set('Cookie', bankCookie)
+      .send({ response: 'Accepted' });
+
+    const response = await agent()
+      .patch(`/api/hospital-requests/${created.body.request.id}`)
+      .set('Cookie', bankCookie)
+      .send({ status: 'Completed' });
+    expect(response.status).toBe(200);
+    expect(response.body.request.status).toBe('Completed');
+  });
+
+  it('a blood bank that only declined (never accepted) cannot mark the request Completed', async () => {
+    const { user: bankUser, profile: bankProfile, password: bankPassword } = await createBloodBank();
+    await BloodInventory.create({ bankId: bankProfile._id, bloodGroup: 'O+', units: 10 });
+    const { cookie: hospitalCookieValue } = await hospitalCookie();
+    const created = await agent()
+      .post('/api/hospital-requests')
+      .set('Cookie', hospitalCookieValue)
+      .send(requestPayload({ bloodGroup: 'O+', units: 1 }));
+
+    const bankCookie = await loginAndGetCookie({ email: bankUser.email, password: bankPassword });
+    await agent()
+      .post(`/api/hospital-requests/${created.body.request.id}/respond-bank`)
+      .set('Cookie', bankCookie)
+      .send({ response: 'Declined' });
+
+    const response = await agent()
+      .patch(`/api/hospital-requests/${created.body.request.id}`)
+      .set('Cookie', bankCookie)
+      .send({ status: 'Completed' });
+    expect(response.status).toBe(403);
+  });
+
+  it("a responding blood bank cannot edit the request's patient/units, even while also marking it Completed", async () => {
+    const { user: bankUser, profile: bankProfile, password: bankPassword } = await createBloodBank();
+    await BloodInventory.create({ bankId: bankProfile._id, bloodGroup: 'O+', units: 10 });
+    const { cookie: hospitalCookieValue } = await hospitalCookie();
+    const created = await agent()
+      .post('/api/hospital-requests')
+      .set('Cookie', hospitalCookieValue)
+      .send(requestPayload({ bloodGroup: 'O+', units: 1 }));
+
+    const bankCookie = await loginAndGetCookie({ email: bankUser.email, password: bankPassword });
+    await agent()
+      .post(`/api/hospital-requests/${created.body.request.id}/respond-bank`)
+      .set('Cookie', bankCookie)
+      .send({ response: 'Accepted' });
+
+    const response = await agent()
+      .patch(`/api/hospital-requests/${created.body.request.id}`)
+      .set('Cookie', bankCookie)
+      .send({ status: 'Completed', units: 99 });
+    expect(response.status).toBe(403);
+  });
+
   it('completing the same request twice does not create a duplicate donation', async () => {
     const { profile: donorProfile, user: donorUser, password: donorPassword } = await createDonor({ bloodGroup: 'O+' });
     const { cookie: hospitalCookieValue } = await hospitalCookie();
@@ -332,6 +399,91 @@ describe('POST /api/hospital-requests/:id/respond-bank', () => {
   });
 });
 
+describe('GET /api/hospital-requests?respondedByBank=true', () => {
+  it("lists a request the bank accepted, and keeps listing it once it's completed", async () => {
+    const { user: bankUser, profile: bankProfile, password: bankPassword } = await createBloodBank();
+    await BloodInventory.create({ bankId: bankProfile._id, bloodGroup: 'O+', units: 10 });
+    const { cookie: hospitalCookieValue } = await hospitalCookie();
+    const created = await agent()
+      .post('/api/hospital-requests')
+      .set('Cookie', hospitalCookieValue)
+      .send(requestPayload({ bloodGroup: 'O+', units: 1 }));
+
+    const bankCookie = await loginAndGetCookie({ email: bankUser.email, password: bankPassword });
+    await agent()
+      .post(`/api/hospital-requests/${created.body.request.id}/respond-bank`)
+      .set('Cookie', bankCookie)
+      .send({ response: 'Accepted' });
+
+    const beforeComplete = await agent().get('/api/hospital-requests?respondedByBank=true').set('Cookie', bankCookie);
+    expect(beforeComplete.status).toBe(200);
+    expect(beforeComplete.body.requests.map((r) => r.id)).toContain(created.body.request.id);
+    expect(beforeComplete.body.requests.find((r) => r.id === created.body.request.id).myBankResponse).toBe('Accepted');
+
+    // Unlike forBloodBank=true (the "still deciding" feed), this one must NOT
+    // drop the request once the raising hospital marks it Completed -- that's
+    // the whole point of this endpoint (see list() in the controller).
+    await agent()
+      .patch(`/api/hospital-requests/${created.body.request.id}`)
+      .set('Cookie', hospitalCookieValue)
+      .send({ status: 'Completed' });
+
+    const afterComplete = await agent().get('/api/hospital-requests?respondedByBank=true').set('Cookie', bankCookie);
+    expect(afterComplete.body.requests.map((r) => r.id)).toContain(created.body.request.id);
+    expect(afterComplete.body.requests.find((r) => r.id === created.body.request.id).status).toBe('Completed');
+  });
+
+  it('excludes a request the bank declined', async () => {
+    const { user: bankUser, profile: bankProfile, password: bankPassword } = await createBloodBank();
+    await BloodInventory.create({ bankId: bankProfile._id, bloodGroup: 'O+', units: 10 });
+    const { cookie: hospitalCookieValue } = await hospitalCookie();
+    const created = await agent()
+      .post('/api/hospital-requests')
+      .set('Cookie', hospitalCookieValue)
+      .send(requestPayload({ bloodGroup: 'O+', units: 1 }));
+
+    const bankCookie = await loginAndGetCookie({ email: bankUser.email, password: bankPassword });
+    await agent()
+      .post(`/api/hospital-requests/${created.body.request.id}/respond-bank`)
+      .set('Cookie', bankCookie)
+      .send({ response: 'Declined' });
+
+    const response = await agent().get('/api/hospital-requests?respondedByBank=true').set('Cookie', bankCookie);
+    expect(response.body.requests.map((r) => r.id)).not.toContain(created.body.request.id);
+  });
+
+  it("excludes a request accepted by a different blood bank", async () => {
+    const { user: bankUser, profile: bankProfile, password: bankPassword } = await createBloodBank();
+    await BloodInventory.create({ bankId: bankProfile._id, bloodGroup: 'O+', units: 10 });
+    const { user: otherBankUser, password: otherBankPassword } = await createBloodBank({
+      email: 'other-bank@example.com',
+    });
+    const { cookie: hospitalCookieValue } = await hospitalCookie();
+    const created = await agent()
+      .post('/api/hospital-requests')
+      .set('Cookie', hospitalCookieValue)
+      .send(requestPayload({ bloodGroup: 'O+', units: 1 }));
+
+    const bankCookie = await loginAndGetCookie({ email: bankUser.email, password: bankPassword });
+    await agent()
+      .post(`/api/hospital-requests/${created.body.request.id}/respond-bank`)
+      .set('Cookie', bankCookie)
+      .send({ response: 'Accepted' });
+
+    const otherBankCookie = await loginAndGetCookie({ email: otherBankUser.email, password: otherBankPassword });
+    const response = await agent()
+      .get('/api/hospital-requests?respondedByBank=true')
+      .set('Cookie', otherBankCookie);
+    expect(response.body.requests.map((r) => r.id)).not.toContain(created.body.request.id);
+  });
+
+  it('rejects a non-bloodbank caller', async () => {
+    const { cookie } = await hospitalCookie();
+    const response = await agent().get('/api/hospital-requests?respondedByBank=true').set('Cookie', cookie);
+    expect(response.status).toBe(403);
+  });
+});
+
 describe('POST /api/hospital-requests/:id/notify and /notify-all', () => {
   it('notify re-runs matching and reports how many donors are now reached', async () => {
     await createDonor({ bloodGroup: 'O+' });
@@ -381,5 +533,25 @@ describe('POST /api/hospital-requests/:id/notify and /notify-all', () => {
       .post(`/api/hospital-requests/${created.body.request.id}/notify-all`)
       .set('Cookie', intruder);
     expect(response.status).toBe(403);
+  });
+
+  it('notify-all reaches every donor account regardless of blood group or availability, unlike the normal flow', async () => {
+    // Neither donor is O+ compatible, and the second is also marked
+    // unavailable -- the normal matching flow (create()'s initial alert)
+    // excludes both.
+    await createDonor({ bloodGroup: 'AB-' });
+    await createDonor({ bloodGroup: 'A-', availabilityStatus: 'unavailable' });
+    const { cookie } = await hospitalCookie();
+    const created = await agent()
+      .post('/api/hospital-requests')
+      .set('Cookie', cookie)
+      .send(requestPayload({ bloodGroup: 'O+' }));
+    expect(created.body.request.matches).toBe(0);
+
+    const response = await agent()
+      .post(`/api/hospital-requests/${created.body.request.id}/notify-all`)
+      .set('Cookie', cookie);
+    expect(response.status).toBe(200);
+    expect(response.body.request.matches).toBe(2);
   });
 });

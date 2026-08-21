@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { env } = require('../config/env');
+const User = require('../models/user.model');
+const { suspensionMessage } = require('../utils/suspension-message');
 
 const COOKIE_NAME = 'bloodnet_token';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -32,15 +34,43 @@ function clearAuthCookie(res) {
   });
 }
 
-function requireAuth(req, res, next) {
+// A valid JWT alone isn't enough to stay authenticated -- the token is good
+// for 7 days regardless of anything that happens to the account in the
+// meantime, so an admin suspending a user must take effect on their very
+// next request, not just their next login. That means checking the live
+// status in the database on every call rather than trusting only what's
+// baked into the token.
+async function requireAuth(req, res, next) {
   const token = req.cookies?.[COOKIE_NAME];
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
+
+  let payload;
   try {
-    req.user = jwt.verify(token, env.jwt.secret);
-    next();
+    payload = jwt.verify(token, env.jwt.secret);
   } catch {
     return res.status(401).json({ error: 'Session expired. Please log in again.' });
   }
+
+  try {
+    const user = await User.findById(payload.id, 'status suspensionReason');
+    if (!user) {
+      clearAuthCookie(res);
+      return res.status(401).json({ error: 'Session expired. Please log in again.' });
+    }
+    if (user.status === 'suspended') {
+      clearAuthCookie(res);
+      return res.status(403).json({
+        error: suspensionMessage(user.suspensionReason),
+        code: 'account_suspended',
+        suspensionReason: user.suspensionReason,
+      });
+    }
+  } catch (error) {
+    return next(error);
+  }
+
+  req.user = payload;
+  next();
 }
 
 // Populates req.user if a valid session cookie is present, but never rejects

@@ -159,7 +159,11 @@ export function AdminUsersPage() {
   }
 
   async function approveUser(user: AdminUserListItem) {
-    if (user.role === 'donor' || !user.approvalId) return;
+    if (user.role === 'donor') return;
+    if (!user.approvalId) {
+      toast.error(t('usersMissingProfileError'));
+      return;
+    }
     setPendingId(user.id);
     try {
       await apiPost(`/admin/${approvalEndpoint(user.role)}/${user.approvalId}/approve`);
@@ -173,7 +177,11 @@ export function AdminUsersPage() {
   }
 
   function openRejectDialog(user: AdminUserListItem) {
-    if (user.role === 'donor' || !user.approvalId) return;
+    if (user.role === 'donor') return;
+    if (!user.approvalId) {
+      toast.error(t('usersMissingProfileError'));
+      return;
+    }
     setRejectTarget({ id: user.approvalId, name: user.name || user.email, role: user.role });
     setRejectReason('');
   }

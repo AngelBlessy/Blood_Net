@@ -10,6 +10,11 @@ const { NOTIFY_TIER_SIZE } = require('../constants');
 // reaches every remaining ranked donor in one go instead of just the next
 // tier, since it's meant to cast the widest net immediately.
 //
+// `options.notifyEveryone` — the same "notify all" override also drops
+// blood-group compatibility, availability, and city/state/radius narrowing:
+// it's a last-resort broadcast to every registered donor account, not a
+// matching search (see donor-matching.service.js's findRankedDonors).
+//
 // A donor is always excluded from being alerted about their own raised
 // request (derived from the request itself, not passed by callers) —
 // applies uniformly whether this runs at creation, a manual re-notify, or
@@ -18,7 +23,7 @@ const { NOTIFY_TIER_SIZE } = require('../constants');
 // Mutates `request.notifiedDonorIds` in place (the caller is responsible for
 // `request.save()`, matching the existing pattern for `matches`/`status`).
 async function notifyDonorsForRequest(request, options = {}) {
-  const { includeTraveling = false } = options;
+  const { includeTraveling = false, notifyEveryone = false } = options;
   const excludeUserId = request.raisedBy === 'donor' ? request.raisedByUserId : null;
 
   // Critical requests broadcast to every compatible donor regardless of
@@ -27,8 +32,9 @@ async function notifyDonorsForRequest(request, options = {}) {
   // the km-radius the request may have from GPS coordinates, and if that's
   // absent too, fall back further to "everyone compatible" rather than
   // silently alerting nobody.
-  const matchOptions =
-    request.priority === 'Critical'
+  const matchOptions = notifyEveryone
+    ? { excludeUserId, includeTraveling: true, includeUnavailable: true, ignoreBloodGroup: true }
+    : request.priority === 'Critical'
       ? { excludeUserId, includeTraveling }
       : {
           excludeUserId,

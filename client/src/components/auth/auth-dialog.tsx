@@ -48,7 +48,8 @@ export function AuthDialog() {
   }
 
   function handleOtpVerified() {
-    toast.success(t('toastRegOtpVerified'));
+    const needsApproval = registration.pending?.role === 'hospital' || registration.pending?.role === 'bloodbank';
+    toast.success(t(needsApproval ? 'toastRegOtpVerifiedPendingApproval' : 'toastRegOtpVerified'));
     setStep('login');
   }
 

@@ -65,6 +65,37 @@ describe('GET /api/admin/analytics', () => {
     });
     expect(response.body.retention).toMatchObject({ registered: expect.any(Number) });
   });
+
+  it('merges donor cities that only differ by case/whitespace into one topCities entry', async () => {
+    await createDonor({ city: 'Chennai' });
+    await createDonor({ city: 'chennai' });
+    await createDonor({ city: ' CHENNAI ' });
+    await createDonor({ city: 'Bokaro' });
+    const cookie = await adminCookie();
+
+    const response = await agent().get('/api/admin/analytics').set('Cookie', cookie);
+    expect(response.status).toBe(200);
+
+    const chennaiEntries = response.body.topCities.filter((entry) => entry.city.trim().toLowerCase() === 'chennai');
+    expect(chennaiEntries).toHaveLength(1);
+    expect(chennaiEntries[0].count).toBe(3);
+  });
+
+  it('merges known alternate city names (Bangalore/Bengaluru) into one topCities entry under the canonical name', async () => {
+    await createDonor({ city: 'Bangalore' });
+    await createDonor({ city: 'bangalore' });
+    await createDonor({ city: 'Bengaluru' });
+    const cookie = await adminCookie();
+
+    const response = await agent().get('/api/admin/analytics').set('Cookie', cookie);
+    expect(response.status).toBe(200);
+
+    const bengaluruEntries = response.body.topCities.filter((entry) =>
+      ['bangalore', 'bengaluru'].includes(entry.city.trim().toLowerCase())
+    );
+    expect(bengaluruEntries).toHaveLength(1);
+    expect(bengaluruEntries[0]).toMatchObject({ city: 'Bengaluru', count: 3 });
+  });
 });
 
 describe('GET /api/admin/trends', () => {

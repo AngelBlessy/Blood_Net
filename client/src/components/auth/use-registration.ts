@@ -11,6 +11,7 @@ const OTP_RESEND_DELAY_MS = 30 * 1000;
 interface PendingRegistration {
   email: string;
   phone: string;
+  role: RegisterValues['role'];
   expiresAt: number;
   resendAt: number;
 }
@@ -34,7 +35,13 @@ export function useRegistration() {
         values.role === 'hospital' || values.role === 'bloodbank'
           ? await apiPostForm<{ ok: boolean; message: string }>('/auth/register', toFormData(values))
           : await apiPost<{ ok: boolean; message: string }>('/auth/register', values);
-      setPending({ email, phone, expiresAt: Date.now() + OTP_VALIDITY_MS, resendAt: Date.now() + OTP_RESEND_DELAY_MS });
+      setPending({
+        email,
+        phone,
+        role: values.role,
+        expiresAt: Date.now() + OTP_VALIDITY_MS,
+        resendAt: Date.now() + OTP_RESEND_DELAY_MS,
+      });
       return { ok: result.ok, accountCreated: true, message: result.message };
     } catch (error) {
       return { ok: false, accountCreated: false, message: apiErrorMessage(error, t('errSomethingWentWrong')) };

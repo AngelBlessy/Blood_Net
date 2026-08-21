@@ -35,6 +35,13 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
   const guestRequest = useGuestRequest();
   const canRaiseDirectly =
     session?.user.role === 'hospital' || session?.user.role === 'bloodbank' || session?.user.role === 'donor';
+  // Admins oversee the network, they don't raise requests -- and without this
+  // check they'd fall through to the guest OTP flow below (canRaiseDirectly
+  // is false for them too), which would let them submit one as if they were
+  // an anonymous guest. Gated here rather than at each call site so both
+  // places this dialog is rendered (hero-section.tsx, live-request-card.tsx)
+  // stay correct automatically.
+  const isAdmin = session?.user.role === 'admin';
 
   const form = useForm<GuestRequestInput, unknown, GuestRequestValues>({
     resolver: zodResolver(guestRequestSchema),
@@ -46,6 +53,8 @@ export function EmergencyRequestDialog({ variant = 'default', size = 'lg', class
 
   const nameGuard = useRestrictedInput('alpha');
   const phoneGuard = useRestrictedInput('numeric');
+
+  if (isAdmin) return null;
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);

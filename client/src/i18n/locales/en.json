@@ -182,6 +182,7 @@
   "usersRejectedToast": "{{name}} has been rejected.",
   "usersLoadError": "Couldn't load accounts.",
   "usersUpdateError": "Couldn't update this account.",
+  "usersMissingProfileError": "This account has no registration profile on file and can't be approved or rejected. Please delete it and ask the user to register again.",
   "insightsEyebrow": "Live network pulse",
   "insightsTitle": "Every signal from the network, at a glance",
   "insightsDesc": "Donors, hospitals, blood banks, and donations — updated the moment something changes.",
@@ -455,6 +456,7 @@
   "resetPasswordDesc": "Enter the registered email or mobile number.",
   "otpVerifyTitle": "Verify OTP",
   "toastRegOtpVerified": "Registration OTP verified. Please log in.",
+  "toastRegOtpVerifiedPendingApproval": "Registration OTP verified. You can log in once an admin approves your registration.",
   "passwordResetSuccess": "Password reset successful. Please login.",
 
   "errRequestNewOtp": "Please request a new OTP.",

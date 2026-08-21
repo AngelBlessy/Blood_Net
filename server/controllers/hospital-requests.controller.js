@@ -100,6 +100,22 @@ async function list(req, res) {
     filter.raisedBy = { $in: ['hospital', 'bloodbank'] };
     filter.raisedByUserId = { $ne: req.user.id };
     filter.status = { $ne: 'Completed' };
+  } else if (req.query.respondedByBank === 'true') {
+    // Requests this bank has accepted, at any status -- unlike forBloodBank
+    // above (which is the "still deciding" feed and drops off completed
+    // requests on purpose), this is what lets the blood-bank dashboard keep
+    // showing an accepted request in live tracking and then move it to
+    // completed once the raising hospital closes it out, instead of it just
+    // vanishing the moment status flips.
+    if (!req.user || req.user.role !== 'bloodbank') return res.status(403).json({ error: 'Not authorized' });
+    const bank = await BloodBankProfile.findOne({ userId: req.user.id });
+    if (!bank) return res.status(404).json({ error: 'Blood bank profile not found.' });
+    myBankId = bank._id.toString();
+    const acceptedResponses = await BloodBankResponse.find(
+      { bankId: bank._id, response: 'Accepted' },
+      'requestId'
+    );
+    filter._id = { $in: acceptedResponses.map((entry) => entry.requestId) };
   } else if (req.query.mine === 'true') {
     if (!req.user) return res.status(403).json({ error: 'Not authorized' });
     if (req.user.role === 'hospital') {
@@ -231,35 +247,43 @@ async function create(req, res) {
 // Admins can manage any request (needed for guest-raised requests, which have
 // no owning hospital account); hospitals can only manage their own; donor/bloodbank
 // raisers can manage requests they personally raised.
-async function requireOwnedRequest(req, res) {
-  const request = await BloodRequest.findById(req.params.id);
-  if (!request) {
-    res.status(404).json({ error: 'Request not found.' });
-    return null;
-  }
-  if (req.user.role === 'admin') return request;
-  if (request.raisedByUserId && request.raisedByUserId.toString() === req.user.id) return request;
+async function isOwnedRequest(req, request) {
+  if (req.user.role === 'admin') return true;
+  if (request.raisedByUserId && request.raisedByUserId.toString() === req.user.id) return true;
 
   const hospital = await HospitalProfile.findOne({ userId: req.user.id });
-  if (!hospital || !request.hospitalId || request.hospitalId.toString() !== hospital._id.toString()) {
-    res.status(403).json({ error: 'Not authorized' });
-    return null;
-  }
-  return request;
+  return Boolean(hospital && request.hospitalId && request.hospitalId.toString() === hospital._id.toString());
+}
+
+// A blood bank that accepted a request didn't raise it, but it's the one
+// that actually fulfilled it -- let it close the request out even though it
+// isn't the owner, rather than leaving that stuck on the raising hospital
+// (see update() below, which only grants this for a completion-only edit,
+// never patient/unit changes).
+async function canCloseAsRespondingBank(req, request) {
+  if (req.user.role !== 'bloodbank') return false;
+  const bank = await BloodBankProfile.findOne({ userId: req.user.id });
+  if (!bank) return false;
+  const response = await BloodBankResponse.findOne({ requestId: request._id, bankId: bank._id, response: 'Accepted' });
+  return Boolean(response);
 }
 
 async function update(req, res) {
-  const request = await requireOwnedRequest(req, res);
-  if (!request) return;
+  const request = await BloodRequest.findById(req.params.id);
+  if (!request) return res.status(404).json({ error: 'Request not found.' });
 
-  if (typeof req.body?.patient === 'string' && req.body.patient.trim()) {
-    request.patient = req.body.patient.trim();
-  }
-  if (Number.isInteger(req.body?.units) && req.body.units > 0) {
-    request.unitsRequired = req.body.units;
-  }
-
+  const wantsPatientEdit = typeof req.body?.patient === 'string' && req.body.patient.trim();
+  const wantsUnitsEdit = Number.isInteger(req.body?.units) && req.body.units > 0;
   const complete = req.body?.status === 'Completed';
+
+  const owned = await isOwnedRequest(req, request);
+  if (!owned) {
+    const canClose = !wantsPatientEdit && !wantsUnitsEdit && complete && (await canCloseAsRespondingBank(req, request));
+    if (!canClose) return res.status(403).json({ error: 'Not authorized' });
+  }
+
+  if (wantsPatientEdit) request.patient = req.body.patient.trim();
+  if (wantsUnitsEdit) request.unitsRequired = req.body.units;
   if (complete) request.status = 'Completed';
   await request.save();
 
@@ -311,15 +335,17 @@ async function notify(req, res) {
 }
 
 // Hospital-only override for a critical request that isn't getting a
-// response: relaxes just the travelling-donor exclusion, keeps blood-group
-// compatibility. Available any time on the hospital's own request, not
-// gated to a timeout.
+// response: a last-resort broadcast to every registered donor, regardless of
+// blood-group compatibility, availability, or location (see notifyEveryone
+// in request-alert.service.js). Available any time on the hospital's own
+// request, not gated to a timeout.
 async function notifyAll(req, res) {
-  const request = await requireOwnedRequest(req, res);
-  if (!request) return;
   if (req.user.role !== 'hospital') return res.status(403).json({ error: 'Not authorized' });
+  const request = await BloodRequest.findById(req.params.id);
+  if (!request) return res.status(404).json({ error: 'Request not found.' });
+  if (!(await isOwnedRequest(req, request))) return res.status(403).json({ error: 'Not authorized' });
 
-  const alertResult = await notifyDonorsForRequest(request, { includeTraveling: true });
+  const alertResult = await notifyDonorsForRequest(request, { includeTraveling: true, notifyEveryone: true });
   request.matches = alertResult.matches;
   request.status = alertResult.matches > 0 ? alertResult.message : 'No compatible donors available';
   await request.save();

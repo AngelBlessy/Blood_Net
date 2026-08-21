@@ -79,6 +79,19 @@ function emitToUser(userId, event, payload) {
   io.to(roomForUser(userId.toString())).emit(event, payload);
 }
 
+// Suspending an account shouldn't just block their *next* login -- anyone
+// already logged in (an open tab with a still-valid 7-day JWT) needs kicking
+// out immediately. Emitting first, then disconnecting, guarantees the client
+// gets the reason before the socket drops out from under it; requireAuth
+// (middleware/auth.js) is what actually revokes their access to the API,
+// this just makes an open tab notice right away instead of on its next call.
+function forceLogoutUser(userId, payload) {
+  if (!io || !userId) return;
+  const room = roomForUser(userId.toString());
+  io.to(room).emit('account:suspended', payload);
+  io.in(room).disconnectSockets(true);
+}
+
 // Broadcasts a generic "something analytics-relevant changed" signal to every
 // connected admin — deliberately payload-less (see admin-insights-page.tsx),
 // so any new mutation that should move the needle can just call this instead
@@ -88,4 +101,4 @@ function emitToAdmins(event) {
   io.to(ADMIN_ROOM).emit(event);
 }
 
-module.exports = { initSocket, emitToRequest, emitToUser, emitToAdmins };
+module.exports = { initSocket, emitToRequest, emitToUser, emitToAdmins, forceLogoutUser };

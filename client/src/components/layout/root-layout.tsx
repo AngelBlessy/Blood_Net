@@ -5,11 +5,13 @@ import { AuthDialog } from '@/components/auth/auth-dialog';
 import { useScrollToHash } from '@/hooks/use-scroll-to-hash';
 import { useBootstrapSession } from '@/hooks/use-bootstrap-session';
 import { useDonorAcceptanceAlerts } from '@/hooks/use-donor-acceptance-alerts';
+import { useSuspensionListener } from '@/hooks/use-suspension-listener';
 
 export function RootLayout() {
   useScrollToHash();
   useBootstrapSession();
   useDonorAcceptanceAlerts();
+  useSuspensionListener();
 
   return (
     <div className="flex min-h-svh flex-col">

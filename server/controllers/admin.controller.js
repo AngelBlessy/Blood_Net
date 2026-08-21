@@ -7,8 +7,10 @@ const BloodInventory = require('../models/blood-inventory.model');
 const Donation = require('../models/donation.model');
 const ApprovalDecision = require('../models/approval-decision.model');
 const { BLOOD_GROUPS, REQUEST_PRIORITIES } = require('../constants');
-const { emitToAdmins } = require('../realtime/socket');
+const { emitToAdmins, forceLogoutUser } = require('../realtime/socket');
 const { notifyUser } = require('../services/notification.service');
+const { suspensionMessage } = require('../utils/suspension-message');
+const { normalizeCity, CANONICAL_NAMES } = require('../services/city-alias.service');
 
 const APPROVAL_HISTORY_LIMIT = 100;
 
@@ -28,6 +30,34 @@ const TREND_RANGES = {
   '6m': { granularity: 'month', count: 6 },
   '1y': { granularity: 'month', count: 12 },
 };
+
+// Merges exact-string city counts (e.g. from a $group on the raw `city`
+// field) onto one entry per real-world city -- collapsing case/whitespace
+// variants and known alternate names (city-alias.service.js) that a plain
+// Mongo $group can't tell apart. A known city (Bengaluru, Mumbai, ...)
+// displays under its canonical name; an unlisted city displays under
+// whichever exact casing donors used most.
+function mergeCityCounts(rawCounts, limit) {
+  const merged = new Map(); // normalized key -> { count, variants: Map<rawCity, count> }
+  for (const { _id: rawCity, count } of rawCounts) {
+    const key = normalizeCity(rawCity);
+    if (!key) continue;
+    if (!merged.has(key)) merged.set(key, { count: 0, variants: new Map() });
+    const entry = merged.get(key);
+    entry.count += count;
+    entry.variants.set(rawCity, (entry.variants.get(rawCity) || 0) + count);
+  }
+
+  return [...merged.entries()]
+    .map(([key, { count, variants }]) => {
+      const displayName = CANONICAL_NAMES.has(key)
+        ? key
+        : [...variants.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      return { city: displayName, count };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
 
 async function inventoryBreakdown() {
   const inventoryItems = await BloodInventory.find({});
@@ -338,10 +368,9 @@ async function setUserStatus(req, res) {
   notifyUser(
     user._id,
     suspending ? 'Account suspended' : 'Account reactivated',
-    suspending
-      ? `Your account has been suspended by the admin: ${reason}`
-      : 'Your account has been reactivated. You can now log in.'
+    suspending ? suspensionMessage(reason) : 'Your account has been reactivated. You can now log in.'
   );
+  if (suspending) forceLogoutUser(user._id, { message: suspensionMessage(reason) });
 
   emitToAdmins('admin:refresh');
   res.json({ ok: true, id: user._id.toString(), status: user.status });
@@ -456,11 +485,15 @@ async function analytics(_req, res) {
     // — a traveling donor set to "available" still shouldn't read as reachable).
     DonorProfile.countDocuments({ traveling: true }),
     DonorProfile.countDocuments({ traveling: false, availabilityStatus: 'unavailable' }),
+    // Donors free-type their city, so the same place shows up under several
+    // spellings ("Chennai"/"chennai", "Bangalore"/"Bengaluru", ...). Grouping
+    // on the raw string here would count those as different cities, so this
+    // only collapses exact/whitespace duplicates in Mongo -- the case- and
+    // alias-aware merge (mergeCityCounts, using city-alias.service.js) happens
+    // in JS below, where the curated alias list actually lives.
     DonorProfile.aggregate([
       { $match: { city: { $nin: [null, ''] } } },
-      { $group: { _id: '$city', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: TOP_CITIES_LIMIT },
+      { $group: { _id: { $trim: { input: '$city' } }, count: { $sum: 1 } } },
     ]),
   ]);
 
@@ -485,7 +518,7 @@ async function analytics(_req, res) {
     unavailable: unavailableCount,
   };
 
-  const topCities = cityCounts.map((entry) => ({ city: entry._id, count: entry.count }));
+  const topCities = mergeCityCounts(cityCounts, TOP_CITIES_LIMIT);
 
   const hospitals = await HospitalProfile.find(
     { _id: { $in: topHospitalCounts.map((entry) => entry._id) } },
